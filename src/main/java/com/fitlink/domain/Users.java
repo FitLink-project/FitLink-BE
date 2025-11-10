@@ -1,54 +1,49 @@
 package com.fitlink.domain;
 
-import com.fitlink.domain.common.BaseEntity;
-import com.fitlink.domain.enums.*;
+import com.fitlink.domain.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDateTime;
 
 @Entity
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Table(name = "users")
 @Getter
 @Setter
-public class Users extends BaseEntity {
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Users {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "users_id")
     private Long id;
 
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "password")
     private String password;
 
-    @Column(nullable = false, unique = true)
-    private String nickName;
-
     @Enumerated(EnumType.STRING)
-    private Gender gender;
-
-    @Enumerated(EnumType.STRING)
-    private Job job;
-
+    @Column(name = "role")
     @Builder.Default
-    @OneToMany(mappedBy ="user", cascade = CascadeType.ALL)
-    private List<Purposes> purposes = new ArrayList<>();
+    private Role role = Role.USER;
 
-    @Builder.Default
-    @OneToMany(mappedBy ="user", cascade = CascadeType.ALL)
-    private List<Interests> interests = new ArrayList<>();
+    @Column(name = "reg_date")
+    private LocalDateTime regDate;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private Role role = Role.USER;;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
-    public void encodePassword(String password) {
-        this.password = password;
-    }
+    @Column(name = "del_date")
+    private LocalDateTime deleteDate;
+
+    @Column(name = "profile_url", columnDefinition = "text")
+    private String profileUrl;
 }
 

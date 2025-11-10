@@ -1,6 +1,6 @@
-package com.fitlink.awsS3.controller;
+package com.fitlink.web.controller;
 
-import com.fitlink.awsS3.AwsS3Service;
+import com.fitlink.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -8,29 +8,31 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/s3")
-public class AwsS3Controller {
+@RequestMapping("/files")
+public class FileStorageController {
 
-    private final AwsS3Service awsS3Service;
+    private final FileStorageService fileStorageService;
 
-    // ?뚯씪 ?낅줈??
     @PostMapping("/upload")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile multipartFile) {
-        String fileUrl = awsS3Service.uploadFile(multipartFile);
-        return ResponseEntity.ok(fileUrl);
+        return ResponseEntity.ok(fileStorageService.uploadFile(multipartFile));
     }
 
-    // ?뚯씪 ??젣
     @DeleteMapping("/delete")
     public ResponseEntity<String> deleteFile(@RequestParam String fileName) {
-        awsS3Service.deleteFile(fileName);
+        fileStorageService.deleteFile(fileName);
         return ResponseEntity.ok("Deleted: " + fileName);
     }
 
-    // ?뚯씪 URL 議고쉶
+    @DeleteMapping("/delete-by-url")
+    public ResponseEntity<String> deleteFileByUrl(@RequestParam String fileUrl) {
+        fileStorageService.deleteFileByUrl(fileUrl);
+        return ResponseEntity.ok("Deleted: " + fileUrl);
+    }
+
     @GetMapping("/url")
     public ResponseEntity<String> getFileUrl(@RequestParam String fileName) {
-        String fileUrl = awsS3Service.getFileUrl(fileName);
-        return ResponseEntity.ok(fileUrl);
+        return ResponseEntity.ok(fileStorageService.getFileUrl(fileName));
     }
 }
+
