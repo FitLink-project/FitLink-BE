@@ -1,0 +1,14 @@
+package com.fitlink.domain.enums;
+
+public enum Purpose {
+    CAREER, //痍⑥뾽쨌而ㅻ━??以鍮?
+    STUDY, //?숈뾽/由ы룷???뺣━
+    WORK, //?낅Т?먮즺 ?꾩뭅?대튃
+    SIDE_PROJECT, //?ъ씠???꾨줈?앺듃/李쎌뾽 以鍮?
+    SELF_DEVELOPMENT, //?먭린怨꾨컻/?뺣낫 ?섏쭛
+    LATER_READING, //?섏쨷???쎄퀬 ?띠? 湲
+    INSIGHTS, //?몄궗?댄듃 紐⑥쑝湲?
+    CREATION_REFERENCE, //釉붾줈洹?肄섑뀗痢??묒꽦 李멸퀬??
+    OTHERS //湲고?
+}
+
