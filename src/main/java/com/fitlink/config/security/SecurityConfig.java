@@ -34,7 +34,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/", "/css/**",
-                                "/api/users/**"
+                                "/api/health/**",
+                                "/api/users/**",
+                                "/files/**"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
