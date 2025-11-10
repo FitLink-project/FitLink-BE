@@ -76,6 +76,19 @@ jobs:
               $IMAGE
             sudo docker image prune -a -f
 
+      - name: Verify container running
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.PRIVATE_KEY }}
+          script: |
+            if [ -z "$(sudo docker ps --filter 'name=fitlink-be' --format '{{.Names}}')" ]; then
+              echo "fitlink-be container is not running."
+              exit 1
+            fi
+            echo "fitlink-be container is running."
+
       - name: Check logs
         uses: appleboy/ssh-action@master
         with:
