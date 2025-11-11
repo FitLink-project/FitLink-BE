@@ -26,9 +26,9 @@ public class Facility {
     private String address;
 
     @Column(nullable = false)
-    private Float latitude;
+    private Double latitude;
 
     @Column(nullable = false)
-    private Float longitude;
+    private Double longitude;
 }
 

@@ -1,5 +1,6 @@
 package com.fitlink.domain;
 
+import com.fitlink.domain.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FitnessResult {
+public class FitnessResult extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,10 +44,5 @@ public class FitnessResult {
     @Column(name = "quickness")
     private Float quickness;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "Field", nullable = false)
-    private LocalDateTime updatedAt;
 }
 

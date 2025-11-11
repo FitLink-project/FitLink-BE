@@ -21,7 +21,7 @@ public class TestGeneral extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "users_id2", nullable = false)
+    @JoinColumn(name = "users_id", nullable = false)
     private Users user;
 
     @Column(name = "slider_strength")
