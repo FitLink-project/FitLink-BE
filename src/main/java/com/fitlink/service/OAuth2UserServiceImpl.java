@@ -127,11 +127,13 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             
             // AuthAccount 생성
             try {
-                log.info("AuthAccount 생성 시작: user.id={}, provider={}, externalId={}", user.getId(), provider, externalId);
+                String socialToken = userRequest.getAccessToken().getTokenValue();
+                log.info("AuthAccount 생성 시작: user.id={}, provider={}, externalId={}, socialToken.length={}", 
+                        user.getId(), provider, externalId, socialToken != null ? socialToken.length() : 0);
                 authAccount = AuthAccount.builder()
                         .user(user)
                         .provider(provider)
-                        .socialToken(userRequest.getAccessToken().getTokenValue())
+                        .socialToken(socialToken)
                         .externalId(externalId)
                         .build();
                 authAccount = authAccountRepository.save(authAccount);
@@ -139,6 +141,7 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             } catch (Exception e) {
                 log.error("AuthAccount 저장 실패: user.id={}, provider={}, externalId={}, error={}", 
                         user.getId(), provider, externalId, e.getMessage(), e);
+                log.error("전체 스택 트레이스:", e);
                 OAuth2Error oauth2Error = new OAuth2Error(
                         "auth_account_creation_failed",
                         "인증 계정 생성 중 오류가 발생했습니다: " + e.getMessage(),
