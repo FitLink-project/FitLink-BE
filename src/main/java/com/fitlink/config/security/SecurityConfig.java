@@ -52,10 +52,16 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)  // OAuth2 플로우 동안 세션 허용
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")  // 커스텀 로그인 페이지 사용 (LoginController에서 처리)
+                        .authorizationEndpoint(authorization -> authorization
+                                .baseUri("/oauth2/authorization")  // OAuth2 인증 엔드포인트 명시
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/login/oauth2/code/*")  // OAuth2 콜백 엔드포인트 명시
+                        )
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(oAuth2UserService)
                         )
