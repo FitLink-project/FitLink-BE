@@ -41,9 +41,20 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         log.info("=== OAuth2 사용자 로드 시작 ===");
         
+        // ClientRegistration에서 설정된 scope 확인
+        String registrationId = userRequest.getClientRegistration().getRegistrationId();
+        String configuredScopes = String.join(", ", userRequest.getClientRegistration().getScopes());
+        log.info("📋 OAuth2 ClientRegistration 설정 확인 - RegistrationId: {}, 설정된 Scopes: [{}]", 
+                registrationId, configuredScopes);
+        
+        // account_email이 포함되어 있으면 경고
+        if (configuredScopes.contains("account_email")) {
+            log.error("❌ 오류: account_email이 scope에 포함되어 있습니다! application.properties에서 제거해야 합니다!");
+            log.error("현재 설정된 scopes: [{}]", configuredScopes);
+        }
+        
         OAuth2User oAuth2User = defaultOAuth2UserService.loadUser(userRequest);
         
-        String registrationId = userRequest.getClientRegistration().getRegistrationId();
         Provider provider = getProvider(registrationId);
         String externalId = getExternalId(oAuth2User, registrationId);
         

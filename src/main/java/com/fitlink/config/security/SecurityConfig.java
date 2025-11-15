@@ -13,6 +13,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -30,6 +33,8 @@ public class SecurityConfig {
     private final OAuth2UserServiceImpl oAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final OAuth2ScopeLoggingFilter oAuth2ScopeLoggingFilter;
+    private final ClientRegistrationRepository clientRegistrationRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -58,6 +63,7 @@ public class SecurityConfig {
                         .loginPage("/login")  // 커스텀 로그인 페이지 사용 (LoginController에서 처리)
                         .authorizationEndpoint(authorization -> authorization
                                 .baseUri("/oauth2/authorization")  // OAuth2 인증 엔드포인트 명시
+                                .authorizationRequestResolver(oAuth2ScopeFilter())  // scope 필터링 Resolver
                         )
                         .redirectionEndpoint(redirection -> redirection
                                 .baseUri("/login/oauth2/code/*")  // OAuth2 콜백 엔드포인트 명시
@@ -68,6 +74,7 @@ public class SecurityConfig {
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
                 )
+                .addFilterBefore(oAuth2ScopeLoggingFilter, OAuth2AuthorizationRequestRedirectFilter.class)
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -91,5 +98,14 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * OAuth2 scope 필터링 Resolver
+     * 카카오의 경우 account_email을 강제로 제거합니다.
+     */
+    @Bean
+    public OAuth2AuthorizationRequestResolver oAuth2ScopeFilter() {
+        return new OAuth2ScopeFilter(clientRegistrationRepository);
     }
 }
