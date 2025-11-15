@@ -11,4 +11,6 @@ public interface UserService {
     Users joinUser(UserRequestDTO.JoinDTO joinDTO, MultipartFile Img);
 
     UserResponseDTO.LoginResultDTO loginUser(UserRequestDTO.LoginRequestDTO request);
+
+    Users updateEmail(Long userId, UserRequestDTO.UpdateEmailDTO request);
 }

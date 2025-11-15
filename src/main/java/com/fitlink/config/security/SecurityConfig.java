@@ -1,7 +1,10 @@
 package com.fitlink.config.security;
 
+import com.fitlink.config.security.handler.OAuth2FailureHandler;
+import com.fitlink.config.security.handler.OAuth2SuccessHandler;
 import com.fitlink.config.security.jwt.JwtAuthenticationFilter;
 import com.fitlink.config.security.jwt.JwtTokenProvider;
+import com.fitlink.service.OAuth2UserServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +27,9 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final OAuth2UserServiceImpl oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -36,7 +42,9 @@ public class SecurityConfig {
                                 "/", "/css/**",
                                 "/api/health/**",
                                 "/api/user/**",
-                                "/files/**"
+                                "/files/**",
+                                "/oauth2/**",
+                                "/login/oauth2/**"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
@@ -44,6 +52,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(oAuth2UserService)
+                        )
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 

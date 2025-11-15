@@ -29,9 +29,8 @@ public class Users extends BaseEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @NotNull
-    @Column(name = "password", nullable = false)
-    private String password;
+    @Column(name = "password")
+    private String password;  // 소셜 로그인 사용자는 null 가능
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
