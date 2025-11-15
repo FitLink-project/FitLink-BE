@@ -116,7 +116,7 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                     log.info("Users 저장 완료 (flushed): id={}, email={}", user.getId(), user.getEmail());
                 } catch (Exception e) {
                     log.error("Users 저장 실패: email={}, provider={}, error={}", email, provider, e.getMessage(), e);
-                    OAuth2Error oauth2Error = new OAuth2Error(
+                    OAuth2 Error oauth2Error = new OAuth2Error(
                             "user_creation_failed",
                             "사용자 생성 중 오류가 발생했습니다: " + e.getMessage(),
                             null
