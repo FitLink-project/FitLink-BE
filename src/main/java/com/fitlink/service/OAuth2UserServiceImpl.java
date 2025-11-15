@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserServ
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,7 +53,12 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                 needsEmailUpdate = true;
                 log.warn("카카오 이메일이 없어 임시 이메일 생성: {}. 사용자가 나중에 실제 이메일로 업데이트해야 합니다.", email);
             } else {
-                throw new OAuth2AuthenticationException("이메일이 필요합니다.");
+                OAuth2Error oauth2Error = new OAuth2Error(
+                        "email_required",
+                        "이메일이 필요합니다.",
+                        null
+                );
+                throw new OAuth2AuthenticationException(oauth2Error);
             }
         }
         
@@ -88,15 +94,28 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                 user = existingUserOpt.get();
             } else {
                 // 완전히 새로운 사용자 생성
-                user = Users.builder()
-                        .email(email)
-                        .name(name != null ? name : "사용자")
-                        .password(null)  // 소셜 로그인은 패스워드 없음
-                        .role(Role.USER)
-                        .isActive(true)
-                        .profileUrl(profileImageUrl)
-                        .build();
-                user = userRepository.save(user);
+                try {
+                    log.info("신규 소셜 로그인 사용자 생성 시작: email={}, provider={}", email, provider);
+                    user = Users.builder()
+                            .email(email)
+                            .name(name != null ? name : "사용자")
+                            .password(null)  // 소셜 로그인은 패스워드 없음
+                            .role(Role.USER)
+                            .isActive(true)
+                            .profileUrl(profileImageUrl)
+                            .build();
+                    log.info("Users 엔티티 생성 완료: email={}", user.getEmail());
+                    user = userRepository.save(user);
+                    log.info("Users 저장 완료: id={}, email={}", user.getId(), user.getEmail());
+                } catch (Exception e) {
+                    log.error("Users 저장 실패: email={}, provider={}, error={}", email, provider, e.getMessage(), e);
+                    OAuth2Error oauth2Error = new OAuth2Error(
+                            "user_creation_failed",
+                            "사용자 생성 중 오류가 발생했습니다: " + e.getMessage(),
+                            null
+                    );
+                    throw new OAuth2AuthenticationException(oauth2Error, e);
+                }
             }
             
             // AuthAccount 생성

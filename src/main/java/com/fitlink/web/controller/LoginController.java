@@ -10,14 +10,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 @RequiredArgsConstructor
 public class LoginController {
 
-    @Value("${server.base-url:https://www.fitlink1207.store}")
+    @Value("${server.base-url}")
     private String baseUrl;
+
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
 
     @GetMapping("/login")
     public String loginPage(Model model) {
         // 절대 경로로 OAuth2 인증 URL 설정
         model.addAttribute("googleAuthUrl", baseUrl + "/oauth2/authorization/google");
         model.addAttribute("kakaoAuthUrl", baseUrl + "/oauth2/authorization/kakao");
+        model.addAttribute("frontendBaseUrl", frontendBaseUrl);  // 프론트엔드 URL 전달
         return "login";
     }
 }
