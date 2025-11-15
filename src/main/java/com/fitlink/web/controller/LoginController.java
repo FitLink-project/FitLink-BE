@@ -3,23 +3,22 @@ package com.fitlink.web.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 
 @Controller
 @RequiredArgsConstructor
 public class LoginController {
 
-    @Value("${frontend.base-url:https://fit-link-fe.vercel.app}")
-    private String frontendBaseUrl;
+    @Value("${server.base-url:https://www.fitlink1207.store}")
+    private String baseUrl;
 
     @GetMapping("/login")
-    public void loginPage(HttpServletResponse response) throws IOException {
-        // 프론트엔드 로그인 페이지로 리다이렉트
-        String frontendLoginUrl = frontendBaseUrl + "/login";
-        response.sendRedirect(frontendLoginUrl);
+    public String loginPage(Model model) {
+        // 절대 경로로 OAuth2 인증 URL 설정
+        model.addAttribute("googleAuthUrl", baseUrl + "/oauth2/authorization/google");
+        model.addAttribute("kakaoAuthUrl", baseUrl + "/oauth2/authorization/kakao");
+        return "login";
     }
 }
 
