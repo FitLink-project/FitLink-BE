@@ -44,6 +44,7 @@ public class SecurityConfig {
                                 "/api/user/**",
                                 "/files/**",
                                 "/oauth2/**",
+                                "/login",
                                 "/login/oauth2/**"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
