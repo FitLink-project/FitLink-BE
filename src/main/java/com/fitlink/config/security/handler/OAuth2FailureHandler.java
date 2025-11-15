@@ -23,7 +23,22 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
                                         AuthenticationException exception) throws IOException {
         
-        log.error("OAuth2 로그인 실패: {}", exception.getMessage());
+        log.error("❌ OAuth2 로그인 실패 발생!");
+        log.error("요청 URI: {}", request.getRequestURI());
+        log.error("에러 타입: {}", exception.getClass().getSimpleName());
+        log.error("에러 메시지: {}", exception.getMessage());
+        log.error("에러 원인: {}", exception.getCause() != null ? exception.getCause().getMessage() : "원인 없음");
+        
+        // 전체 스택 트레이스 로깅 (디버깅용)
+        log.error("전체 스택 트레이스:", exception);
+        
+        // 쿼리 파라미터 확인 (authorization code 등)
+        request.getParameterMap().forEach((key, values) -> {
+            if (values.length > 0) {
+                log.info("요청 파라미터 - {}: {}", key, 
+                        "code".equals(key) ? "***" : values[0]); // code는 보안상 마스킹
+            }
+        });
         
         // 에러와 함께 프론트엔드로 리다이렉트
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
@@ -33,6 +48,7 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
                 .encode(StandardCharsets.UTF_8)
                 .toUriString();
         
+        log.info("프론트엔드로 에러 리다이렉트: {}", targetUrl);
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }
