@@ -103,4 +103,24 @@ public class UserServiceImpl implements UserService {
         // 6. Mapper를 사용하여 결과 DTO 반환
         return userMapper.toLoginResultDTO(user, accessToken);
     }
+
+    @Override
+    public Users updateEmail(Long userId, UserRequestDTO.UpdateEmailDTO request) {
+        // 1. 사용자 확인
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus._USER_NOT_FOUND));
+
+        // 2. 새 이메일 중복 체크
+        if (!user.getEmail().equals(request.getEmail())) {
+            userRepository.findByEmail(request.getEmail())
+                    .ifPresent(existingUser -> {
+                        throw new GeneralException(ErrorStatus._DUPLICATE_EMAIL);
+                    });
+        }
+
+        // 3. 이메일 업데이트
+        user.setEmail(request.getEmail());
+
+        return user;
+    }
 }

@@ -2,14 +2,12 @@ package com.fitlink.domain;
 
 import com.fitlink.domain.enums.Provider;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "auth_account")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
