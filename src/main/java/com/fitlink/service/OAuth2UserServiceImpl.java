@@ -39,25 +39,36 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        log.info("=== OAuth2 사용자 로드 시작 ===");
+        
         OAuth2User oAuth2User = defaultOAuth2UserService.loadUser(userRequest);
         
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         Provider provider = getProvider(registrationId);
         String externalId = getExternalId(oAuth2User, registrationId);
+        
+        log.info("OAuth2 Provider: {}, RegistrationId: {}, ExternalId: {}", provider, registrationId, externalId);
+        
         String email = getEmail(oAuth2User, registrationId);
         String name = getName(oAuth2User, registrationId);
         String profileImageUrl = getProfileImageUrl(oAuth2User, registrationId);
+        
+        log.info("OAuth2에서 추출한 정보 - Email: {}, Name: {}, ProfileImageUrl: {}", 
+                email != null ? email : "(없음)", name, profileImageUrl);
         
         // 카카오 이메일이 없는 경우 임시 이메일 생성
         // 주의: 임시 이메일은 실제 메일 주소가 아니므로 이메일 인증/재설정 등이 불가능함
         // 사용자가 나중에 실제 이메일로 업데이트해야 함
         boolean needsEmailUpdate = false;
         if (email == null || email.isBlank()) {
+            log.warn("OAuth2에서 이메일을 받지 못함 - Provider: {}, Email: {}", provider, email);
             if (provider == Provider.KAKAO) {
                 email = generateTemporaryEmail(provider, externalId);
                 needsEmailUpdate = true;
                 log.warn("카카오 이메일이 없어 임시 이메일 생성: {}. 사용자가 나중에 실제 이메일로 업데이트해야 합니다.", email);
+                log.info("needsEmailUpdate 플래그 설정: true (임시 이메일 생성됨)");
             } else {
+                log.error("이메일이 필수인 Provider({})에서 이메일을 받지 못함", provider);
                 OAuth2Error oauth2Error = new OAuth2Error(
                         "email_required",
                         "이메일이 필요합니다.",
@@ -65,6 +76,8 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                 );
                 throw new OAuth2AuthenticationException(oauth2Error);
             }
+        } else {
+            log.info("OAuth2에서 이메일 수신 성공: {}, needsEmailUpdate: false", email);
         }
         
         // AuthAccount로 사용자 찾기
@@ -116,7 +129,7 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                     log.info("Users 저장 완료 (flushed): id={}, email={}", user.getId(), user.getEmail());
                 } catch (Exception e) {
                     log.error("Users 저장 실패: email={}, provider={}, error={}", email, provider, e.getMessage(), e);
-                    OAuth2 Error oauth2Error = new OAuth2Error(
+                    OAuth2Error oauth2Error = new OAuth2Error(
                             "user_creation_failed",
                             "사용자 생성 중 오류가 발생했습니다: " + e.getMessage(),
                             null
@@ -157,7 +170,13 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
         if (needsEmailUpdate) {
             attributesWithFlag.put("needsEmailUpdate", true);
             attributesWithFlag.put("temporaryEmail", email);
+            log.info("CustomOAuth2User attributes에 needsEmailUpdate=true 추가됨 (임시 이메일: {})", email);
+        } else {
+            log.info("CustomOAuth2User 생성 (정상 이메일: {}), needsEmailUpdate: false", user.getEmail());
         }
+        
+        log.info("=== OAuth2 사용자 로드 완료 - UserId: {}, Email: {}, Provider: {}, needsEmailUpdate: {} ===", 
+                user.getId(), user.getEmail(), provider, needsEmailUpdate);
         
         return new CustomOAuth2User(
                 Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name())),
