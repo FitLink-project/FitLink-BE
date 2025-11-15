@@ -17,6 +17,8 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import java.util.Collections;
 import java.util.Map;
@@ -31,6 +33,9 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
     private final UserRepository userRepository;
     private final AuthAccountRepository authAccountRepository;
     private final DefaultOAuth2UserService defaultOAuth2UserService = new DefaultOAuth2UserService();
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -106,7 +111,9 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                             .build();
                     log.info("Users 엔티티 생성 완료: email={}", user.getEmail());
                     user = userRepository.save(user);
-                    log.info("Users 저장 완료: id={}, email={}", user.getId(), user.getEmail());
+                    // 외래 키 제약 조건을 위해 즉시 DB에 플러시
+                    entityManager.flush();
+                    log.info("Users 저장 완료 (flushed): id={}, email={}", user.getId(), user.getEmail());
                 } catch (Exception e) {
                     log.error("Users 저장 실패: email={}, provider={}, error={}", email, provider, e.getMessage(), e);
                     OAuth2Error oauth2Error = new OAuth2Error(
@@ -119,13 +126,26 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             }
             
             // AuthAccount 생성
-            authAccount = AuthAccount.builder()
-                    .user(user)
-                    .provider(provider)
-                    .socialToken(userRequest.getAccessToken().getTokenValue())
-                    .externalId(externalId)
-                    .build();
-            authAccountRepository.save(authAccount);
+            try {
+                log.info("AuthAccount 생성 시작: user.id={}, provider={}, externalId={}", user.getId(), provider, externalId);
+                authAccount = AuthAccount.builder()
+                        .user(user)
+                        .provider(provider)
+                        .socialToken(userRequest.getAccessToken().getTokenValue())
+                        .externalId(externalId)
+                        .build();
+                authAccount = authAccountRepository.save(authAccount);
+                log.info("AuthAccount 저장 완료: id={}, user.id={}, provider={}", authAccount.getId(), user.getId(), provider);
+            } catch (Exception e) {
+                log.error("AuthAccount 저장 실패: user.id={}, provider={}, externalId={}, error={}", 
+                        user.getId(), provider, externalId, e.getMessage(), e);
+                OAuth2Error oauth2Error = new OAuth2Error(
+                        "auth_account_creation_failed",
+                        "인증 계정 생성 중 오류가 발생했습니다: " + e.getMessage(),
+                        null
+                );
+                throw new OAuth2AuthenticationException(oauth2Error, e);
+            }
         }
         
         // OAuth2User 반환 (JWT 토큰 생성에 사용됨)
