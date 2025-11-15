@@ -16,7 +16,7 @@ public class UserService {
     public UserResponseDTO.JoinResultDTO join(UserRequestDTO.JoinDTO joinDTO) {
         // DTO -> Entity 변환
         Users user = userMapper.toEntity(joinDTO);
-        user.setRegDate(LocalDateTime.now());
+        user.setCreatedAt(LocalDateTime.now());
         user.setRole(Role.USER);
         user.setIsActive(true);
         

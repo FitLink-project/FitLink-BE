@@ -12,9 +12,9 @@ public interface UserMapper {
 
     // JoinDTO -> Users (회원가입 시)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "name", source = "nickName")
     @Mapping(target = "role", ignore = true)
-    @Mapping(target = "regDate", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "isActive", ignore = true)
     @Mapping(target = "deleteDate", ignore = true)
     @Mapping(target = "profileUrl", ignore = true)
@@ -22,7 +22,7 @@ public interface UserMapper {
 
     // Users -> JoinResultDTO
     @Mapping(target = "userId", source = "id")
-    @Mapping(target = "createdAt", source = "regDate")
+    @Mapping(target = "createdAt", source = "createdAt")
     UserResponseDTO.JoinResultDTO toJoinResultDTO(Users user);
 
     // Users -> LoginResultDTO (accessToken은 별도로 설정 필요)
