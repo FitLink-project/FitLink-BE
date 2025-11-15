@@ -3,7 +3,10 @@ package com.fitlink.service;
 import com.fitlink.apiPayload.code.status.ErrorStatus;
 import com.fitlink.apiPayload.exception.GeneralException;
 import com.fitlink.config.security.jwt.JwtTokenProvider;
+import com.fitlink.domain.AuthAccount;
 import com.fitlink.domain.Users;
+import com.fitlink.domain.enums.Provider;
+import com.fitlink.repository.AuthAccountRepository;
 import com.fitlink.repository.UserRepository;
 import com.fitlink.storage.FileStorageService;
 import com.fitlink.web.dto.UserRequestDTO;
@@ -30,6 +33,7 @@ import java.util.Optional;
 public class UserServiceImpl implements UserService {
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
+    private final AuthAccountRepository authAccountRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -57,8 +61,19 @@ public class UserServiceImpl implements UserService {
         Optional.ofNullable(profileUrl)
                 .ifPresent(user::setProfileUrl);
         
-        // 3. 저장 및 반환
-        return userRepository.save(user);
+        // 3. Users 저장
+        Users savedUser = userRepository.save(user);
+        
+        // 4. AuthAccount 생성 (일반 로그인용)
+        AuthAccount authAccount = AuthAccount.builder()
+                .user(savedUser)
+                .provider(Provider.GENERAL)
+                .socialToken(null)  // 일반 로그인은 소셜 토큰 없음
+                .externalId(null)   // 일반 로그인은 external ID 없음
+                .build();
+        authAccountRepository.save(authAccount);
+        
+        return savedUser;
     }
     
     @Override
