@@ -1,5 +1,7 @@
 package com.fitlink.web.dto;
 
+import com.fitlink.validation.annotation.ValidEmail;
+import com.fitlink.validation.annotation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
@@ -14,9 +16,11 @@ public class UserRequestDTO {
 
         @NotBlank
         @Email
+        @ValidEmail
         String email;
 
         @NotBlank
+        @ValidPassword
         String password;
     }
 

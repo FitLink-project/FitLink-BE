@@ -1,4 +1,4 @@
-package com.fitlink.web.mapping;
+package com.fitlink.web.mapper;
 
 import com.fitlink.domain.Users;
 import com.fitlink.web.dto.UserRequestDTO;
@@ -25,9 +25,9 @@ public interface UserMapper {
     @Mapping(target = "createdAt", source = "createdAt")
     UserResponseDTO.JoinResultDTO toJoinResultDTO(Users user);
 
-    // Users -> LoginResultDTO (accessToken은 별도로 설정 필요)
-    @Mapping(target = "userId", source = "id")
-    @Mapping(target = "accessToken", ignore = true)
-    UserResponseDTO.LoginResultDTO toLoginResultDTO(Users user);
+    // Users -> LoginResultDTO
+    @Mapping(target = "userId", source = "user.id")
+    @Mapping(target = "accessToken", source = "accessToken")
+    UserResponseDTO.LoginResultDTO toLoginResultDTO(Users user, String accessToken);
 }
 

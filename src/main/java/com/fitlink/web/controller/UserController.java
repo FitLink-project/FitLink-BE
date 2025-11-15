@@ -5,7 +5,7 @@ import com.fitlink.domain.Users;
 import com.fitlink.service.UserService;
 import com.fitlink.web.dto.UserRequestDTO;
 import com.fitlink.web.dto.UserResponseDTO;
-import com.fitlink.web.mapping.UserMapper;
+import com.fitlink.web.mapper.UserMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -24,5 +24,12 @@ public class UserController {
         
         Users user = userService.joinUser(request,Img);
         return ApiResponse.onSuccess(userMapper.toJoinResultDTO(user));
+    }
+
+    @PostMapping(value = "/login", consumes = "application/json")
+    public ApiResponse<UserResponseDTO.LoginResultDTO> login(
+            @RequestBody @Valid UserRequestDTO.LoginRequestDTO request) {
+        UserResponseDTO.LoginResultDTO loginResultDTO = userService.loginUser(request);
+        return ApiResponse.onSuccess(loginResultDTO);
     }
 }
