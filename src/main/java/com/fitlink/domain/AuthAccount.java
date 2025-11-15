@@ -26,7 +26,7 @@ public class AuthAccount {
     @Column(nullable = false, length = 50)
     private Provider provider;
 
-    @Column(name = "social_token", length = 255)
+    @Column(name = "social_token", columnDefinition = "TEXT")
     private String socialToken;
     
     @Column(name = "ext_id", length = 255)
