@@ -26,7 +26,7 @@ public class FitnessCalculator {
                 ? linear(value, minValue, midValue, 0, 60) // 입력값이 중앙값보다 낮은 경우
                 : linear(value, midValue, maxValue, 60, 100); // 입력값이 중앙값보다 높은 경우
 
-        return (float) Math.max(0, score);
+        return Math.max(0, score);
     }
 
     /**
@@ -47,7 +47,7 @@ public class FitnessCalculator {
                 ? linear(value, maxValue, midValue, 0, 60) // 입력값이 중앙값보다 높은 경우
                 : linear(value, midValue, minValue, 60, 100); // 입력값이 중앙값보다 낮은 경우
 
-        return (float) Math.max(0, score);
+        return Math.max(0, score);
     }
 
     /**
