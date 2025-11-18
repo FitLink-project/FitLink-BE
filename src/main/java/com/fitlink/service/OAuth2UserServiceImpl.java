@@ -39,47 +39,24 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        log.info("=== OAuth2 사용자 로드 시작 ===");
-        
-        // ClientRegistration에서 설정된 scope 확인
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
-        String configuredScopes = String.join(", ", userRequest.getClientRegistration().getScopes());
-        log.info("📋 OAuth2 ClientRegistration 설정 확인 - RegistrationId: {}, 설정된 Scopes: [{}]", 
-                registrationId, configuredScopes);
-        
-        // account_email이 포함되어 있으면 경고
-        if (configuredScopes.contains("account_email")) {
-            log.error("❌ 오류: account_email이 scope에 포함되어 있습니다! application.properties에서 제거해야 합니다!");
-            log.error("현재 설정된 scopes: [{}]", configuredScopes);
-        }
         
         OAuth2User oAuth2User = defaultOAuth2UserService.loadUser(userRequest);
         
         Provider provider = getProvider(registrationId);
         String externalId = getExternalId(oAuth2User, registrationId);
         
-        log.info("OAuth2 Provider: {}, RegistrationId: {}, ExternalId: {}", provider, registrationId, externalId);
-        
         String email = getEmail(oAuth2User, registrationId);
         String name = getName(oAuth2User, registrationId);
         String profileImageUrl = getProfileImageUrl(oAuth2User, registrationId);
         
-        log.info("OAuth2에서 추출한 정보 - Email: {}, Name: {}, ProfileImageUrl: {}", 
-                email != null ? email : "(없음)", name, profileImageUrl);
-        
-        // 카카오 이메일이 없는 경우 임시 이메일 생성
-        // 주의: 임시 이메일은 실제 메일 주소가 아니므로 이메일 인증/재설정 등이 불가능함
-        // 사용자가 나중에 실제 이메일로 업데이트해야 함
         boolean needsEmailUpdate = false;
         if (email == null || email.isBlank()) {
-            log.warn("OAuth2에서 이메일을 받지 못함 - Provider: {}, Email: {}", provider, email);
             if (provider == Provider.KAKAO) {
                 email = generateTemporaryEmail(provider, externalId);
                 needsEmailUpdate = true;
-                log.warn("카카오 이메일이 없어 임시 이메일 생성: {}. 사용자가 나중에 실제 이메일로 업데이트해야 합니다.", email);
-                log.info("needsEmailUpdate 플래그 설정: true (임시 이메일 생성됨)");
+                log.warn("카카오 이메일이 없어 임시 이메일 생성: {}", email);
             } else {
-                log.error("이메일이 필수인 Provider({})에서 이메일을 받지 못함", provider);
                 OAuth2Error oauth2Error = new OAuth2Error(
                         "email_required",
                         "이메일이 필요합니다.",
@@ -87,8 +64,6 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                 );
                 throw new OAuth2AuthenticationException(oauth2Error);
             }
-        } else {
-            log.info("OAuth2에서 이메일 수신 성공: {}, needsEmailUpdate: false", email);
         }
         
         // AuthAccount로 사용자 찾기
@@ -124,22 +99,18 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             } else {
                 // 완전히 새로운 사용자 생성
                 try {
-                    log.info("신규 소셜 로그인 사용자 생성 시작: email={}, provider={}", email, provider);
                     user = Users.builder()
                             .email(email)
                             .name(name != null ? name : "사용자")
-                            .password(null)  // 소셜 로그인은 패스워드 없음
+                            .password(null)
                             .role(Role.USER)
                             .isActive(true)
                             .profileUrl(profileImageUrl)
                             .build();
-                    log.info("Users 엔티티 생성 완료: email={}", user.getEmail());
                     user = userRepository.save(user);
-                    // 외래 키 제약 조건을 위해 즉시 DB에 플러시
                     entityManager.flush();
-                    log.info("Users 저장 완료 (flushed): id={}, email={}", user.getId(), user.getEmail());
                 } catch (Exception e) {
-                    log.error("Users 저장 실패: email={}, provider={}, error={}", email, provider, e.getMessage(), e);
+                    log.error("Users 저장 실패: email={}, provider={}", email, provider, e);
                     OAuth2Error oauth2Error = new OAuth2Error(
                             "user_creation_failed",
                             "사용자 생성 중 오류가 발생했습니다: " + e.getMessage(),
@@ -152,8 +123,6 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             // AuthAccount 생성
             try {
                 String socialToken = userRequest.getAccessToken().getTokenValue();
-                log.info("AuthAccount 생성 시작: user.id={}, provider={}, externalId={}, socialToken.length={}", 
-                        user.getId(), provider, externalId, socialToken != null ? socialToken.length() : 0);
                 authAccount = AuthAccount.builder()
                         .user(user)
                         .provider(provider)
@@ -161,11 +130,8 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                         .externalId(externalId)
                         .build();
                 authAccount = authAccountRepository.save(authAccount);
-                log.info("AuthAccount 저장 완료: id={}, user.id={}, provider={}", authAccount.getId(), user.getId(), provider);
             } catch (Exception e) {
-                log.error("AuthAccount 저장 실패: user.id={}, provider={}, externalId={}, error={}", 
-                        user.getId(), provider, externalId, e.getMessage(), e);
-                log.error("전체 스택 트레이스:", e);
+                log.error("AuthAccount 저장 실패: user.id={}, provider={}", user.getId(), provider, e);
                 OAuth2Error oauth2Error = new OAuth2Error(
                         "auth_account_creation_failed",
                         "인증 계정 생성 중 오류가 발생했습니다: " + e.getMessage(),
@@ -176,18 +142,11 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
         }
         
         // OAuth2User 반환 (JWT 토큰 생성에 사용됨)
-        // needsEmailUpdate 플래그를 attributes에 추가하여 프론트엔드로 전달
         Map<String, Object> attributesWithFlag = new java.util.HashMap<>(oAuth2User.getAttributes());
         if (needsEmailUpdate) {
             attributesWithFlag.put("needsEmailUpdate", true);
             attributesWithFlag.put("temporaryEmail", email);
-            log.info("CustomOAuth2User attributes에 needsEmailUpdate=true 추가됨 (임시 이메일: {})", email);
-        } else {
-            log.info("CustomOAuth2User 생성 (정상 이메일: {}), needsEmailUpdate: false", user.getEmail());
         }
-        
-        log.info("=== OAuth2 사용자 로드 완료 - UserId: {}, Email: {}, Provider: {}, needsEmailUpdate: {} ===", 
-                user.getId(), user.getEmail(), provider, needsEmailUpdate);
         
         return new CustomOAuth2User(
                 Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name())),

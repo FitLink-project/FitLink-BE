@@ -27,17 +27,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                 @Value("${oauth2.redirect.uri:http://localhost:3000/oauth2/redirect}") String redirectUri) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.redirectUri = redirectUri;
-        
-        log.info("OAuth2SuccessHandler 초기화 - 프론트엔드 리다이렉트 URI: {}", this.redirectUri);
-        
-        // 기본 리다이렉트 동작 비활성화 (우리가 직접 제어)
         setAlwaysUseDefaultTargetUrl(false);
-        
-        // 리다이렉트 전략 명시적 설정
-        setRedirectStrategy((request, response, url) -> {
-            log.info("OAuth2 리다이렉트 실행: {} -> {}", request.getRequestURI(), url);
-            response.sendRedirect(url);
-        });
     }
 
     @Override
@@ -45,68 +35,41 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                         Authentication authentication) throws IOException {
         
         try {
-            log.info("OAuth2 인증 성공 처리 시작: {}", request.getRequestURI());
-            log.info("사용할 프론트엔드 리다이렉트 URI: {}", redirectUri);
-            
             if (redirectUri == null || redirectUri.isBlank()) {
-                log.error("프론트엔드 리다이렉트 URI가 설정되지 않았습니다!");
                 throw new IllegalStateException("프론트엔드 리다이렉트 URI가 설정되지 않았습니다.");
             }
             
             OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-            String email = oAuth2User.getName(); // CustomOAuth2User에서 email 반환
-            
-            log.info("OAuth2 인증 성공 - 사용자 이메일: {}", email);
-            log.info("OAuth2User attributes: {}", oAuth2User.getAttributes().keySet());
-            
-            // 카카오 이메일이 없는 경우 needsEmailUpdate 플래그 확인
+            String email = oAuth2User.getName();
             Boolean needsEmailUpdate = oAuth2User.getAttribute("needsEmailUpdate");
-            log.info("needsEmailUpdate 플래그 확인 결과: {} (from OAuth2User attributes)", needsEmailUpdate);
             
             Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
-            log.info("사용자 권한: {}", authorities);
-            
-            // JWT 토큰 생성
             org.springframework.security.authentication.UsernamePasswordAuthenticationToken authToken =
                     new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                            email,
-                            null,
-                            authorities
+                            email, null, authorities
                     );
             
             String accessToken = jwtTokenProvider.generateToken(authToken);
-            log.info("JWT 토큰 생성 완료 - 토큰 길이: {}, 이메일: {}", accessToken.length(), email);
             
-            // 리다이렉트 URL 생성 (프론트엔드로 토큰 전달)
             UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(redirectUri)
                     .queryParam("token", accessToken);
-            log.info("기본 리다이렉트 URL 생성: {}?token=***", redirectUri);
             
-            // 이메일 업데이트가 필요한 경우 플래그 추가
             if (Boolean.TRUE.equals(needsEmailUpdate)) {
                 uriBuilder.queryParam("needsEmailUpdate", true);
-                log.warn("⚠️ OAuth2 로그인 성공 (임시 이메일): {}. 사용자가 이메일을 입력해야 합니다.", email);
-                log.info("리다이렉트 URL에 needsEmailUpdate=true 파라미터 추가됨");
+                log.warn("OAuth2 로그인 성공 (임시 이메일): {}", email);
             } else {
-                log.info("✅ OAuth2 로그인 성공 (정상 이메일): {}, needsEmailUpdate: false", email);
+                log.info("OAuth2 로그인 성공: {}", email);
             }
             
             String targetUrl = uriBuilder.build()
                     .encode(StandardCharsets.UTF_8)
                     .toUriString();
             
-            log.info("📤 프론트엔드로 최종 리다이렉트 URL: {} (토큰 길이: {}, needsEmailUpdate: {})", 
-                    targetUrl.replaceAll("token=[^&]+", "token=***"), 
-                    accessToken.length(), 
-                    needsEmailUpdate);
-            
-            // 리다이렉트 실행
             getRedirectStrategy().sendRedirect(request, response, targetUrl);
             
         } catch (Exception e) {
-            log.error("OAuth2 인증 성공 처리 중 오류 발생", e);
+            log.error("OAuth2 인증 성공 처리 중 오류", e);
             
-            // 에러 발생 시에도 프론트엔드로 리다이렉트 (에러 정보 포함)
             String errorUrl = UriComponentsBuilder.fromUriString(redirectUri)
                     .queryParam("error", "oauth2_processing_error")
                     .queryParam("message", "인증 처리 중 오류가 발생했습니다.")
