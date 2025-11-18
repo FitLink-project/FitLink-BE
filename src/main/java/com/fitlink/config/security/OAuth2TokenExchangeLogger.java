@@ -1,11 +1,22 @@
 package com.fitlink.config.security;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
+import org.springframework.http.RequestEntity;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationExchange;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -13,6 +24,10 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -44,8 +59,47 @@ public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClien
         this.restTemplate = new RestTemplate();
         this.restTemplate.setMessageConverters(Arrays.asList(
                 new FormHttpMessageConverter(),
+                new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(),
                 new OAuth2AccessTokenResponseHttpMessageConverter()
         ));
+        
+        // 실제 HTTP 요청 본문 로깅을 위한 인터셉터 추가
+        this.restTemplate.getInterceptors().add(new ClientHttpRequestInterceptor() {
+            @Override
+            public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+                // 카카오 토큰 요청인 경우에만 로깅
+                if (request.getURI().toString().contains("kauth.kakao.com/oauth/token")) {
+                    log.info("=== 실제 HTTP 요청 (RestTemplate 인터셉터) ===");
+                    log.info("요청 URL: {}", request.getURI());
+                    log.info("요청 메서드: {}", request.getMethod());
+                    log.info("요청 헤더:");
+                    request.getHeaders().forEach((key, values) -> 
+                        log.info("  {}: {}", key, values)
+                    );
+                    
+                    // 실제 HTTP 요청 본문 로깅
+                    if (body != null && body.length > 0) {
+                        String requestBody = new String(body, StandardCharsets.UTF_8);
+                        log.info("=== 실제 HTTP 요청 본문 (전송되는 실제 데이터) ===");
+                        
+                        // client_secret 포함 여부 확인
+                        if (requestBody.contains("client_secret")) {
+                            log.info("✅ client_secret 파라미터가 실제 HTTP 요청에 포함되어 있습니다!");
+                            log.info("요청 본문 (민감한 정보 마스킹): {}", 
+                                maskSensitiveData(requestBody));
+                        } else {
+                            log.error("❌❌❌ CRITICAL: client_secret 파라미터가 실제 HTTP 요청에 포함되지 않습니다! ❌❌❌");
+                            log.error("이것이 KOE010 오류의 원인일 수 있습니다!");
+                            log.error("실제 요청 본문: {}", requestBody);
+                        }
+                    } else {
+                        log.warn("⚠️ HTTP 요청 본문이 비어있습니다.");
+                    }
+                }
+                
+                return execution.execute(request, body);
+            }
+        });
         
         // Spring Security의 기본 구현체를 사용하되, RestTemplate을 주입
         org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient client = 
@@ -55,6 +109,43 @@ public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClien
         
         // 오래된 code 정리 스케줄러 시작 (10분마다 실행, 30분 이상 된 code 제거)
         cleanupScheduler.scheduleAtFixedRate(this::cleanupOldCodes, 10, 10, TimeUnit.MINUTES);
+    }
+    
+    /**
+     * 민감한 데이터 마스킹 (client_secret, code 등)
+     */
+    private String maskSensitiveData(String requestBody) {
+        if (requestBody == null || requestBody.isEmpty()) {
+            return requestBody;
+        }
+        
+        String masked = requestBody;
+        
+        // client_secret 마스킹
+        Pattern clientSecretPattern = Pattern.compile("client_secret=([^&]+)");
+        Matcher clientSecretMatcher = clientSecretPattern.matcher(masked);
+        StringBuffer sb = new StringBuffer();
+        while (clientSecretMatcher.find()) {
+            String secret = clientSecretMatcher.group(1);
+            String replacement = "client_secret=" + (secret.length() > 5 ? secret.substring(0, 5) + "..." : secret);
+            clientSecretMatcher.appendReplacement(sb, replacement);
+        }
+        clientSecretMatcher.appendTail(sb);
+        masked = sb.toString();
+        
+        // code 마스킹
+        Pattern codePattern = Pattern.compile("code=([^&]+)");
+        Matcher codeMatcher = codePattern.matcher(masked);
+        sb = new StringBuffer();
+        while (codeMatcher.find()) {
+            String code = codeMatcher.group(1);
+            String replacement = "code=" + (code.length() > 20 ? code.substring(0, 20) + "..." : code);
+            codeMatcher.appendReplacement(sb, replacement);
+        }
+        codeMatcher.appendTail(sb);
+        masked = sb.toString();
+        
+        return masked;
     }
     
     /**
@@ -92,85 +183,220 @@ public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClien
         var authorizationResponse = authorizationCodeGrantRequest.getAuthorizationExchange().getAuthorizationResponse();
         String code = authorizationResponse.getCode();
         
-        // 카카오인 경우에만 code 재사용 체크 및 상세 로깅
+        // 카카오인 경우 직접 토큰 요청을 수행하여 client_secret을 명시적으로 포함
         if ("kakao".equalsIgnoreCase(registrationId)) {
             // Code 재사용 체크
             checkCodeReuse(code);
             
             logTokenExchangeRequest(authorizationCodeGrantRequest);
             logActualHttpRequest(authorizationCodeGrantRequest);
-        }
-        
-        try {
-            OAuth2AccessTokenResponse response = delegate.getTokenResponse(authorizationCodeGrantRequest);
             
-            // 성공 시 code를 사용된 목록에 추가
-            if ("kakao".equalsIgnoreCase(registrationId)) {
+            try {
+                OAuth2AccessTokenResponse response = performKakaoTokenRequest(authorizationCodeGrantRequest);
+                
+                // 성공 시 code를 사용된 목록에 추가
                 markCodeAsUsed(code);
                 logTokenExchangeResponse(response);
+                
+                return response;
+            } catch (RestClientException e) {
+                // 실패 시에도 code를 사용된 것으로 표시 (카카오는 code를 무효화할 수 있음)
+                if (code != null) {
+                    markCodeAsUsed(code);
+                }
+                
+                log.error("=== 카카오 토큰 교환 실패 ===");
+                log.error("에러 메시지: {}", e.getMessage());
+                
+                // HTTP 에러 응답 본문이 있으면 로깅
+                if (e instanceof org.springframework.web.client.HttpClientErrorException) {
+                    org.springframework.web.client.HttpClientErrorException httpEx = 
+                            (org.springframework.web.client.HttpClientErrorException) e;
+                    log.error("HTTP 상태 코드: {}", httpEx.getStatusCode());
+                    log.error("HTTP 상태 텍스트: {}", httpEx.getStatusText());
+                    
+                    try {
+                        String responseBody = httpEx.getResponseBodyAsString();
+                        if (responseBody != null && !responseBody.isEmpty()) {
+                            log.error("HTTP 응답 본문: {}", responseBody);
+                        } else {
+                            log.error("HTTP 응답 본문: 없음 (카카오가 에러 본문을 반환하지 않음)");
+                        }
+                    } catch (Exception ex) {
+                        log.error("HTTP 응답 본문 읽기 실패: {}", ex.getMessage());
+                    }
+                    
+                    // HTTP 응답 헤더 확인
+                    try {
+                        HttpHeaders headers = httpEx.getResponseHeaders();
+                        if (headers != null) {
+                            log.error("HTTP 응답 헤더:");
+                            headers.forEach((key, values) -> 
+                                log.error("  {}: {}", key, values)
+                            );
+                        }
+                    } catch (Exception ex) {
+                        log.warn("HTTP 응답 헤더 읽기 실패: {}", ex.getMessage());
+                    }
+                }
+                
+                if (e.getCause() != null) {
+                    log.error("원인: {}", e.getCause().getMessage());
+                }
+                
+                // 401 에러의 가능한 원인 안내
+                log.error("=== 401 에러 가능한 원인 ===");
+                log.error("1. Client Secret이 잘못되었을 수 있음");
+                log.error("   - 카카오 개발자 콘솔의 Client Secret과 application.properties의 client-secret이 일치하는지 확인");
+                log.error("2. Redirect URI가 카카오 개발자 콘솔에 등록된 것과 정확히 일치하지 않을 수 있음");
+                log.error("   - 등록된 URI: {}", authorizationCodeGrantRequest.getAuthorizationExchange().getAuthorizationResponse().getRedirectUri());
+                log.error("   - 카카오 개발자 콘솔의 Redirect URI와 정확히 일치해야 함 (공백, 대소문자, 슬래시 포함)");
+                log.error("3. Authorization Request의 redirect_uri와 Token Exchange의 redirect_uri가 다를 수 있음");
+                log.error("4. Code가 이미 사용되었거나 만료되었을 수 있음 (카카오는 code 1회성 사용)");
+                log.error("5. 카카오 개발자 콘솔에서 앱 상태가 비활성화되었을 수 있음");
+                
+                throw e;
+            } catch (Exception e) {
+                log.error("카카오 토큰 교환 중 예외 발생: {}", e.getMessage(), e);
+                throw e;
             }
-            
+        }
+        
+        // 구글 등 다른 Provider는 기존 delegate 사용
+        try {
+            OAuth2AccessTokenResponse response = delegate.getTokenResponse(authorizationCodeGrantRequest);
             return response;
-        } catch (RestClientException e) {
-            // 실패 시에도 code를 사용된 것으로 표시 (카카오는 code를 무효화할 수 있음)
-            if ("kakao".equalsIgnoreCase(registrationId) && code != null) {
-                markCodeAsUsed(code);
+        } catch (Exception e) {
+            log.error("OAuth2 토큰 교환 중 예외 발생: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+    
+    /**
+     * 카카오 토큰 요청을 직접 수행하여 client_secret을 명시적으로 포함
+     * 카카오는 client_secret을 POST 본문에 포함해야 합니다.
+     */
+    private OAuth2AccessTokenResponse performKakaoTokenRequest(OAuth2AuthorizationCodeGrantRequest request) {
+        var clientRegistration = request.getClientRegistration();
+        var authorizationExchange = request.getAuthorizationExchange();
+        var authorizationResponse = authorizationExchange.getAuthorizationResponse();
+        
+        String tokenUri = clientRegistration.getProviderDetails().getTokenUri();
+        String clientId = clientRegistration.getClientId();
+        String clientSecret = clientRegistration.getClientSecret();
+        String code = authorizationResponse.getCode();
+        String redirectUri = authorizationResponse.getRedirectUri();
+        
+        // 카카오 문서에 따른 토큰 요청 파라미터 (client_secret 포함)
+        MultiValueMap<String, String> formParameters = new LinkedMultiValueMap<>();
+        formParameters.add("grant_type", "authorization_code");
+        formParameters.add("client_id", clientId);
+        formParameters.add("redirect_uri", redirectUri);
+        formParameters.add("code", code);
+        
+        // client_secret을 명시적으로 포함 (카카오 필수)
+        if (clientSecret != null && !clientSecret.isBlank()) {
+            formParameters.add("client_secret", clientSecret);
+            log.info("✅ client_secret이 토큰 요청 파라미터에 명시적으로 포함되었습니다.");
+        } else {
+            log.error("❌❌❌ CRITICAL: client_secret이 null이거나 비어있습니다! ❌❌❌");
+            log.error("카카오 토큰 요청에 client_secret이 필요합니다!");
+            log.error("application.properties에서 spring.security.oauth2.client.registration.kakao.client-secret 값을 확인하세요.");
+        }
+        
+        // HTTP 요청 헤더 설정
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        
+        // RequestEntity 생성
+        RequestEntity<MultiValueMap<String, String>> requestEntity = new RequestEntity<>(
+                formParameters,
+                headers,
+                org.springframework.http.HttpMethod.POST,
+                java.net.URI.create(tokenUri)
+        );
+        
+        log.info("=== 카카오 토큰 요청 (client_secret 포함) ===");
+        log.info("요청 URL: {}", tokenUri);
+        log.info("요청 파라미터 개수: {}", formParameters.size());
+        log.info("client_secret 포함 여부: {}", formParameters.containsKey("client_secret") ? "✅ 포함됨" : "❌ 포함 안됨");
+        
+        try {
+            // RestTemplate을 사용하여 토큰 요청 수행 (Map으로 응답 받기)
+            ResponseEntity<java.util.Map<String, Object>> responseEntity = 
+                    restTemplate.exchange(
+                            requestEntity,
+                            new ParameterizedTypeReference<java.util.Map<String, Object>>() {}
+                    );
+            
+            // 응답 Map을 OAuth2AccessTokenResponse로 변환
+            java.util.Map<String, Object> responseMap = responseEntity.getBody();
+            if (responseMap == null || !responseMap.containsKey("access_token")) {
+                throw new IllegalStateException("카카오 토큰 응답이 유효하지 않습니다: " + responseMap);
             }
             
-            log.error("=== 카카오 토큰 교환 실패 ===");
-            log.error("에러 메시지: {}", e.getMessage());
+            // OAuth2AccessTokenResponse 생성
+            OAuth2AccessTokenResponse.Builder builder = OAuth2AccessTokenResponse
+                    .withToken((String) responseMap.get("access_token"))
+                    .tokenType(OAuth2AccessToken.TokenType.BEARER);
             
-            // HTTP 에러 응답 본문이 있으면 로깅
-            if (e instanceof org.springframework.web.client.HttpClientErrorException) {
-                org.springframework.web.client.HttpClientErrorException httpEx = 
-                        (org.springframework.web.client.HttpClientErrorException) e;
-                log.error("HTTP 상태 코드: {}", httpEx.getStatusCode());
-                log.error("HTTP 상태 텍스트: {}", httpEx.getStatusText());
-                
-                try {
-                    String responseBody = httpEx.getResponseBodyAsString();
-                    if (responseBody != null && !responseBody.isEmpty()) {
-                        log.error("HTTP 응답 본문: {}", responseBody);
-                    } else {
-                        log.error("HTTP 응답 본문: 없음 (카카오가 에러 본문을 반환하지 않음)");
-                    }
-                } catch (Exception ex) {
-                    log.error("HTTP 응답 본문 읽기 실패: {}", ex.getMessage());
+            // expires_in 처리
+            Object expiresInObj = responseMap.get("expires_in");
+            if (expiresInObj != null) {
+                if (expiresInObj instanceof Integer) {
+                    builder.expiresIn((Integer) expiresInObj);
+                } else if (expiresInObj instanceof String) {
+                    builder.expiresIn(Integer.parseInt((String) expiresInObj));
+                } else if (expiresInObj instanceof Number) {
+                    builder.expiresIn(((Number) expiresInObj).intValue());
                 }
-                
-                // HTTP 응답 헤더 확인
-                try {
-                    org.springframework.http.HttpHeaders headers = httpEx.getResponseHeaders();
-                    if (headers != null) {
-                        log.error("HTTP 응답 헤더:");
-                        headers.forEach((key, values) -> 
-                            log.error("  {}: {}", key, values)
-                        );
-                    }
-                } catch (Exception ex) {
-                    log.warn("HTTP 응답 헤더 읽기 실패: {}", ex.getMessage());
+            }
+            
+            // refresh_token 처리
+            if (responseMap.containsKey("refresh_token")) {
+                builder.refreshToken((String) responseMap.get("refresh_token"));
+            }
+            
+            // scope 처리
+            if (responseMap.containsKey("scope")) {
+                Object scopeObj = responseMap.get("scope");
+                if (scopeObj instanceof String) {
+                    String scopeString = (String) scopeObj;
+                    java.util.Set<String> scopes = new java.util.HashSet<>(java.util.Arrays.asList(scopeString.split(" ")));
+                    builder.scopes(scopes);
+                } else if (scopeObj instanceof java.util.Collection) {
+                    java.util.Set<String> scopes = new java.util.HashSet<>((java.util.Collection<String>) scopeObj);
+                    builder.scopes(scopes);
                 }
             }
             
-            if (e.getCause() != null) {
-                log.error("원인: {}", e.getCause().getMessage());
+            // 추가 파라미터 처리 (기본 필드 제외)
+            java.util.Map<String, Object> additionalParams = new java.util.HashMap<>();
+            responseMap.forEach((key, value) -> {
+                if (!key.equals("access_token") && 
+                    !key.equals("token_type") && 
+                    !key.equals("expires_in") && 
+                    !key.equals("refresh_token") && 
+                    !key.equals("scope")) {
+                    additionalParams.put(key, value);
+                }
+            });
+            
+            if (!additionalParams.isEmpty()) {
+                builder.additionalParameters(additionalParams);
             }
             
-            // 401 에러의 가능한 원인 안내
-            log.error("=== 401 에러 가능한 원인 ===");
-            log.error("1. Client Secret이 잘못되었을 수 있음");
-            log.error("   - 카카오 개발자 콘솔의 Client Secret과 application.properties의 client-secret이 일치하는지 확인");
-            log.error("2. Redirect URI가 카카오 개발자 콘솔에 등록된 것과 정확히 일치하지 않을 수 있음");
-            log.error("   - 등록된 URI: {}", authorizationCodeGrantRequest.getAuthorizationExchange().getAuthorizationResponse().getRedirectUri());
-            log.error("   - 카카오 개발자 콘솔의 Redirect URI와 정확히 일치해야 함 (공백, 대소문자, 슬래시 포함)");
-            log.error("3. Authorization Request의 redirect_uri와 Token Exchange의 redirect_uri가 다를 수 있음");
-            log.error("4. Code가 이미 사용되었거나 만료되었을 수 있음 (카카오는 code 1회성 사용)");
-            log.error("5. 카카오 개발자 콘솔에서 앱 상태가 비활성화되었을 수 있음");
+            OAuth2AccessTokenResponse response = builder.build();
+            log.info("✅ 카카오 토큰 요청 성공 (client_secret 포함하여 전송)");
+            return response;
             
+        } catch (org.springframework.web.client.RestClientException e) {
+            log.error("카카오 토큰 요청 실패: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("카카오 토큰 교환 중 예외 발생: {}", e.getMessage(), e);
-            throw e;
+            log.error("카카오 토큰 응답 파싱 실패: {}", e.getMessage(), e);
+            throw new IllegalStateException("카카오 토큰 응답 파싱 실패", e);
         }
     }
     
@@ -221,22 +447,40 @@ public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClien
                 }
             });
             
-            // 카카오 개발자 콘솔 확인 사항
-            log.info("=== 카카오 개발자 콘솔 확인 사항 ===");
-            log.info("1. Redirect URI가 정확히 일치하는지 확인:");
-            log.info("   등록된 URI: {}", redirectUri);
-            log.info("   (카카오 개발자 콘솔에 정확히 동일한 URI가 등록되어 있어야 함)");
-            log.info("   - 대소문자, 슬래시, 공백 모두 정확히 일치해야 함");
-            log.info("2. Client Secret이 올바른지 확인:");
-            log.info("   Client ID: {}", clientRegistration.getClientId());
-            log.info("   Client Secret (앞 5자리): {}...", 
+            // 카카오 문서 기준 파라미터 검증
+            log.info("=== 카카오 문서 기준 파라미터 검증 ===");
+            log.info("✅ 토큰 요청 URL: {}", tokenUri);
+            log.info("✅ Content-Type: application/x-www-form-urlencoded (문서 요구사항 준수)");
+            log.info("✅ grant_type: authorization_code (필수, 문서 준수)");
+            log.info("✅ client_id: {} (앱 REST API 키, 필수)", clientRegistration.getClientId());
+            log.info("✅ redirect_uri: {} (인가 코드가 리다이렉트된 URI, 필수)", redirectUri);
+            log.info("✅ code: {}... (인가 코드, 필수)", code != null ? code.substring(0, Math.min(20, code.length())) : "null");
+            log.info("✅ client_secret: {}... (보안 강화용, [카카오 로그인] > [보안] ON 상태인 경우 필수)", 
                     clientRegistration.getClientSecret() != null 
                             ? clientRegistration.getClientSecret().substring(0, Math.min(5, clientRegistration.getClientSecret().length())) 
                             : "null");
-            log.info("3. Code가 이미 사용되었는지 확인 (카카오는 code 1회성 사용)");
-            log.info("4. CORS 설정 확인:");
-            log.info("   - /login/oauth2/** 경로는 .permitAll()로 허용됨 ✅");
-            log.info("   - CORS는 모든 경로(/**)에 대해 허용됨 ✅");
+            
+            // 카카오 개발자 콘솔 확인 사항
+            log.info("=== 카카오 개발자 콘솔 필수 확인 사항 ===");
+            log.info("1. Redirect URI 등록 확인:");
+            log.info("   [카카오 로그인] > [리다이렉트 URI]에 다음 URI가 정확히 등록되어 있어야 함:");
+            log.info("   {}", redirectUri);
+            log.info("   ⚠️ 대소문자, 슬래시, 공백 모두 정확히 일치해야 함");
+            log.info("2. Client Secret 설정 확인:");
+            log.info("   [카카오 로그인] > [보안]에서 Client Secret 사용 설정 확인");
+            log.info("   - ON 상태인 경우: client_secret 파라미터 필수 (현재 전송 중 ✅)");
+            log.info("   - OFF 상태인 경우: client_secret 파라미터 불필요");
+            log.info("   현재 전송 중인 Client Secret 앞 5자리: {}...", 
+                    clientRegistration.getClientSecret() != null 
+                            ? clientRegistration.getClientSecret().substring(0, Math.min(5, clientRegistration.getClientSecret().length())) 
+                            : "null");
+            log.info("   [보안] 메뉴에서 확인한 Client Secret과 application.properties의 client-secret이 일치하는지 확인");
+            log.info("3. Code 재사용 확인:");
+            log.info("   카카오는 code 1회성 사용 (이미 사용된 code는 재사용 불가)");
+            log.info("4. 앱 상태 확인:");
+            log.info("   [카카오 로그인] 활성화 상태 확인");
+            log.info("5. 플랫폼 등록 확인:");
+            log.info("   [앱] > [플랫폼]에 웹 플랫폼 등록되어 있는지 확인");
             
         } catch (Exception e) {
             log.warn("실제 HTTP 요청 로깅 중 오류: {}", e.getMessage());
