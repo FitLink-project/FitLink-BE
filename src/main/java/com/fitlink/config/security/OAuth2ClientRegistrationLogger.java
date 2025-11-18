@@ -45,7 +45,11 @@ public class OAuth2ClientRegistrationLogger {
                     log.info("  이제 account_email 없이 로그인이 가능해야 합니다.");
                 }
             } else {
-                log.warn("⚠️ 카카오 ClientRegistration을 찾을 수 없습니다!");
+                log.error("❌ 카카오 ClientRegistration을 찾을 수 없습니다!");
+                log.error("application.properties에서 카카오 설정을 확인하세요:");
+                log.error("  - spring.security.oauth2.client.registration.kakao.client-id");
+                log.error("  - spring.security.oauth2.client.registration.kakao.client-secret");
+                log.error("  - spring.security.oauth2.client.provider.kakao.*");
             }
             
             ClientRegistration googleRegistration = clientRegistrationRepository.findByRegistrationId("google");
