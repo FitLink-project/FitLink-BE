@@ -39,6 +39,246 @@ Users (1) ──< (N) AuthAccount
   └── AuthAccount: {provider: GOOGLE, external_id: "abcde", user_id: 1}
   ```
 
+## 코드 흐름
+
+### 전체 OAuth2 로그인 플로우
+
+```
+[프론트엔드]
+1. 사용자가 "카카오 로그인" 버튼 클릭
+   → GET /oauth2/authorization/kakao
+
+[백엔드 - Spring Security Filter Chain]
+2. OAuth2AuthorizationRequestRedirectFilter
+   → OAuth2 인가 요청 생성 (authorization URL, state, scope 등)
+   → 소셜 로그인 제공자(카카오)로 리다이렉트
+
+[카카오/구글]
+3. 사용자 인증 및 동의
+   → 사용자가 카카오에서 로그인 및 권한 동의
+   → GET /login/oauth2/code/kakao?code={authorization_code}&state={state}
+
+[백엔드 - Spring Security Filter Chain]
+4. OAuth2LoginAuthenticationFilter
+   → Authorization Code로 Access Token 교환
+   → OAuth2TokenExchangeLogger.getTokenResponse() 호출
+     - 카카오: 직접 토큰 요청 수행 (client_secret 포함)
+     - 구글: 기본 구현 사용
+
+5. OAuth2UserService.loadUser() 호출
+   → OAuth2UserServiceImpl.loadUser() 실행
+     - Provider + ExternalId로 AuthAccount 조회
+     - 이메일로 Users 조회 또는 생성
+     - AuthAccount 생성 또는 업데이트
+   → CustomOAuth2User 반환
+
+6. OAuth2SuccessHandler.onAuthenticationSuccess()
+   → JWT 토큰 생성 (JwtTokenProvider.generateToken())
+   → 프론트엔드로 리다이렉트: {frontendUrl}/oauth2/redirect?token={jwt}
+
+[프론트엔드]
+7. 토큰 저장 및 인증 완료
+   → localStorage/sessionStorage에 JWT 토큰 저장
+   → 인증된 상태로 앱 사용
+```
+
+### 핵심 메서드 상세 흐름
+
+#### 1. `OAuth2UserServiceImpl.loadUser()`
+
+**코드 위치**: `src/main/java/com/fitlink/service/OAuth2UserServiceImpl.java:41-156`
+
+```
+입력: OAuth2UserRequest (OAuth2 Access Token 포함)
+
+1. Provider 정보 추출
+   → registrationId (google/kakao)로 Provider enum 변환
+   
+2. OAuth2 사용자 정보 조회
+   → DefaultOAuth2UserService.loadUser() 호출
+   → email, name, profileImageUrl, externalId 추출
+   
+3. 이메일 처리
+   IF email == null OR email.isBlank():
+      IF provider == KAKAO:
+         → 임시 이메일 생성: kakao_{externalId}@kakao.fitlink
+         → needsEmailUpdate = true
+      ELSE:
+         → OAuth2AuthenticationException throw (이메일 필수)
+   
+4. 기존 AuthAccount 조회
+   → authAccountRepository.findByProviderAndExternalId(provider, externalId)
+   
+   IF AuthAccount 존재:
+      → 기존 Users 조회 (authAccount.getUser())
+      → 사용자 정보 업데이트 (이름, 프로필 이미지)
+      → AuthAccount의 social_token 업데이트
+      → CustomOAuth2User 반환
+   
+   ELSE:
+      5-1. 이메일로 기존 Users 조회
+           → userRepository.findByEmail(email)
+           
+           IF Users 존재:
+              → 기존 Users에 새 AuthAccount 연결
+              → AuthAccount 생성 및 저장
+              → CustomOAuth2User 반환
+              
+           ELSE:
+              5-2. 새로운 Users 생성
+                   → Users.builder()
+                       .email(email)
+                       .name(name != null ? name : "사용자")
+                       .password(null)
+                       .role(USER)
+                       .isActive(true)
+                       .profileUrl(profileImageUrl)
+                   → userRepository.save(user)
+                   → entityManager.flush()
+               
+               5-3. AuthAccount 생성
+                   → AuthAccount.builder()
+                       .user(user)
+                       .provider(provider)
+                       .externalId(externalId)
+                       .socialToken(accessToken)
+                   → authAccountRepository.save(authAccount)
+               
+               → CustomOAuth2User 반환 (needsEmailUpdate 플래그 포함)
+
+출력: CustomOAuth2User (OAuth2User 구현체)
+```
+
+#### 2. `UserServiceImpl.updateEmail()`
+
+**코드 위치**: `src/main/java/com/fitlink/service/UserServiceImpl.java:108-169`
+
+```
+입력: userId (Long), UpdateEmailDTO (email: String)
+
+1. 현재 Users 조회
+   → userRepository.findById(userId)
+   → 없으면: USER_NOT_FOUND 예외
+
+2. 이메일 변경 확인
+   IF 현재 이메일 == 새 이메일:
+      → 현재 Users 반환 (변경 없음)
+
+3. 기존 Users 확인
+   → userRepository.findByEmail(request.getEmail())
+   
+   IF 기존 Users 존재:
+      3-1. 임시 카카오 이메일 확인
+           → isTemporaryKakaoEmail(currentUser.getEmail())
+           → 패턴: kakao_\\d+@kakao\\.fitlink
+           
+           IF 임시 이메일:
+              3-2. 카카오 AuthAccount 찾기
+                   → authAccountRepository.findByUserAndProvider(currentUser, KAKAO)
+                   
+                   IF 카카오 AuthAccount 존재:
+                      3-3. AuthAccount 소유권 확인
+                           → 이미 다른 사용자에 연결되어 있으면 예외
+                      
+                      3-4. 현재 Users의 모든 AuthAccount 확인
+                           → authAccountRepository.findByUser(currentUser)
+                      
+                      3-5. 카카오 AuthAccount를 기존 Users에 연결
+                           → kakaoAuthAccount.setUser(existingUser)
+                           → authAccountRepository.save(kakaoAuthAccount)
+                      
+                      3-6. 임시 이메일 Users 삭제
+                           IF AuthAccount가 1개만 있으면:
+                              → userRepository.delete(currentUser)
+                           ELSE:
+                              → 현재 Users 유지 (다른 AuthAccount 있음)
+                      
+                      → 기존 Users 반환
+                  
+                  ELSE:
+                      → DUPLICATE_EMAIL 예외
+           
+           ELSE:
+              → DUPLICATE_EMAIL 예외 (일반 사용자)
+   
+   ELSE:
+      4. 새 이메일로 업데이트
+          → currentUser.setEmail(request.getEmail())
+          → 현재 Users 반환
+
+출력: Users (이메일이 업데이트되었거나 기존 Users에 연결된 Users)
+```
+
+#### 3. `OAuth2SuccessHandler.onAuthenticationSuccess()`
+
+**코드 위치**: `src/main/java/com/fitlink/config/security/handler/OAuth2SuccessHandler.java:34-79`
+
+```
+입력: HttpServletRequest, HttpServletResponse, Authentication
+
+1. OAuth2User 정보 추출
+   → authentication.getPrincipal() → OAuth2User
+   → email = oAuth2User.getName()
+   → needsEmailUpdate = oAuth2User.getAttribute("needsEmailUpdate")
+
+2. JWT 토큰 생성
+   → UsernamePasswordAuthenticationToken 생성
+     - principal: email
+     - authorities: OAuth2User의 authorities
+   → jwtTokenProvider.generateToken(authToken)
+
+3. 프론트엔드 리다이렉트 URL 생성
+   → UriComponentsBuilder.fromUriString(redirectUri)
+     .queryParam("token", accessToken)
+   
+   IF needsEmailUpdate == true:
+      → .queryParam("needsEmailUpdate", true)
+
+4. 리다이렉트
+   → response.sendRedirect(targetUrl)
+   → 프론트엔드: {frontendUrl}/oauth2/redirect?token={jwt}&needsEmailUpdate=true
+
+예외 처리:
+   → 예외 발생 시 에러 URL로 리다이렉트
+   → {frontendUrl}/oauth2/redirect?error=oauth2_processing_error&message={error}
+```
+
+#### 4. `OAuth2TokenExchangeLogger.getTokenResponse()`
+
+**코드 위치**: `src/main/java/com/fitlink/config/security/OAuth2TokenExchangeLogger.java:159-206`
+
+```
+입력: OAuth2AuthorizationCodeGrantRequest
+
+1. Provider 확인
+   → registrationId 추출 (google/kakao)
+   
+   IF kakao:
+      2-1. Code 재사용 체크
+           → checkCodeReuse(code)
+           → ConcurrentHashMap에서 이전 사용 기록 확인
+           → 재사용 감지 시 에러 로깅
+      
+      2-2. 카카오 토큰 요청 수행
+           → performKakaoTokenRequest(request)
+             - RequestEntity 생성 (client_secret 포함)
+             - RestTemplate.exchange() 호출
+             - 응답을 OAuth2AccessTokenResponse로 변환
+      
+      2-3. Code 사용 표시
+           → markCodeAsUsed(code)
+           → ConcurrentHashMap에 저장
+      
+      → OAuth2AccessTokenResponse 반환
+   
+   ELSE (google 등):
+      2-4. 기본 구현 사용
+           → delegateForGoogle.getTokenResponse(request)
+           → Spring Security 기본 구현으로 처리
+
+출력: OAuth2AccessTokenResponse (Access Token, Refresh Token 등)
+```
+
 ## 현재 연결 로직
 
 ### OAuth2 로그인 프로세스
@@ -257,7 +497,7 @@ public ResponseEntity<?> connectSocialAccount(
 - 이미 로그인한 상태에서 새로운 소셜 계정을 추가하는 API 없음
 
 ❌ **이메일 없는 경우 연결**
-- 카카오처럼 이메일이 없는 경우, 임시 이메일로 인해 다른 `Users`로 생성됨
+- 카카오처럼 이메일이 없는 경우, 임시 이메일로 인해 다른 `Users`로 생성됨. 추가로 이메일을 받았을 때 해당 이메일의 유저 계정으로 자동 통합되도록 처리.
 
 ❌ **이메일이 다른 경우 연결**
 - 다른 이메일을 사용하는 소셜 계정은 자동 연결되지 않음
