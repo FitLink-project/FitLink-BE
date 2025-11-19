@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> {
 
-    private final OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> delegate;
+    private final OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> delegateForGoogle;
     private final RestTemplate restTemplate;
     
     // 사용된 authorization code 추적 (재사용 방지)
@@ -55,7 +55,7 @@ public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClien
     private final ScheduledExecutorService cleanupScheduler = Executors.newScheduledThreadPool(1);
 
     public OAuth2TokenExchangeLogger() {
-        // 커스텀 RestTemplate 생성 (로깅용)
+        // 카카오용 커스텀 RestTemplate 생성 (로깅용)
         this.restTemplate = new RestTemplate();
         this.restTemplate.setMessageConverters(Arrays.asList(
                 new FormHttpMessageConverter(),
@@ -101,11 +101,9 @@ public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClien
             }
         });
         
-        // Spring Security의 기본 구현체를 사용하되, RestTemplate을 주입
-        org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient client = 
-                new org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient();
-        client.setRestOperations(this.restTemplate);
-        this.delegate = client;
+        // 구글 등 다른 Provider는 기본 Spring Security 구현체 사용 (RestTemplate 주입하지 않음)
+        // 기본 구현은 자체 RestTemplate을 사용하며, 모든 표준 MessageConverter가 포함되어 있음
+        this.delegateForGoogle = new org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient();
         
         // 오래된 code 정리 스케줄러 시작 (10분마다 실행, 30분 이상 된 code 제거)
         cleanupScheduler.scheduleAtFixedRate(this::cleanupOldCodes, 10, 10, TimeUnit.MINUTES);
@@ -262,12 +260,12 @@ public class OAuth2TokenExchangeLogger implements OAuth2AccessTokenResponseClien
             }
         }
         
-        // 구글 등 다른 Provider는 기존 delegate 사용
+        // 구글 등 다른 Provider는 기본 Spring Security 구현체 사용 (표준 MessageConverter 포함)
         try {
-            OAuth2AccessTokenResponse response = delegate.getTokenResponse(authorizationCodeGrantRequest);
+            OAuth2AccessTokenResponse response = delegateForGoogle.getTokenResponse(authorizationCodeGrantRequest);
             return response;
         } catch (Exception e) {
-            log.error("OAuth2 토큰 교환 중 예외 발생: {}", e.getMessage(), e);
+            log.error("OAuth2 토큰 교환 중 예외 발생 (Provider: {}): {}", registrationId, e.getMessage(), e);
             throw e;
         }
     }
