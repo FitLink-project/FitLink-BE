@@ -107,20 +107,75 @@ public class UserServiceImpl implements UserService {
     @Override
     public Users updateEmail(Long userId, UserRequestDTO.UpdateEmailDTO request) {
         // 1. 사용자 확인
-        Users user = userRepository.findById(userId)
+        Users currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus._USER_NOT_FOUND));
 
-        // 2. 새 이메일 중복 체크
-        if (!user.getEmail().equals(request.getEmail())) {
-            userRepository.findByEmail(request.getEmail())
-                    .ifPresent(existingUser -> {
-                        throw new GeneralException(ErrorStatus._DUPLICATE_EMAIL);
-                    });
+        // 2. 새 이메일이 현재 이메일과 같은 경우 그대로 반환
+        if (currentUser.getEmail().equals(request.getEmail())) {
+            return currentUser;
         }
 
-        // 3. 이메일 업데이트
-        user.setEmail(request.getEmail());
+        // 3. 입력한 이메일이 이미 존재하는 Users인지 확인
+        Optional<Users> existingUserOpt = userRepository.findByEmail(request.getEmail());
 
-        return user;
+        if (existingUserOpt.isPresent()) {
+            // 3-1. 기존 Users가 존재하는 경우: 카카오 계정 연결 및 임시 이메일 Users 삭제
+            Users existingUser = existingUserOpt.get();
+
+            // 3-2. 현재 Users가 임시 이메일로 생성된 카카오 사용자인지 확인
+            if (isTemporaryKakaoEmail(currentUser.getEmail())) {
+                // 3-3. 현재 Users의 카카오 AuthAccount 찾기
+                Optional<AuthAccount> kakaoAuthAccountOpt = authAccountRepository
+                        .findByUserAndProvider(currentUser, Provider.KAKAO);
+
+                if (kakaoAuthAccountOpt.isPresent()) {
+                    AuthAccount kakaoAuthAccount = kakaoAuthAccountOpt.get();
+
+                    // 3-4. 카카오 AuthAccount가 이미 다른 사용자에 연결되어 있는지 확인
+                    if (!kakaoAuthAccount.getUser().equals(currentUser)) {
+                        throw new GeneralException(ErrorStatus._DUPLICATE_EMAIL);
+                    }
+
+                    // 3-5. 현재 Users의 모든 AuthAccount 확인 (카카오 외에 다른 AuthAccount가 있는지)
+                    List<AuthAccount> currentUserAuthAccounts = authAccountRepository.findByUser(currentUser);
+                    
+                    // 3-6. 카카오 AuthAccount를 기존 Users에 연결
+                    kakaoAuthAccount.setUser(existingUser);
+                    authAccountRepository.save(kakaoAuthAccount);
+
+                    // 3-7. 카카오 AuthAccount 외에 다른 AuthAccount가 있으면 삭제하지 않음
+                    // (일반 로그인 계정 등이 있을 수 있음)
+                    if (currentUserAuthAccounts.size() == 1) {
+                        // 카카오 AuthAccount만 있는 경우 현재 Users 삭제
+                        userRepository.delete(currentUser);
+                    }
+                    // 다른 AuthAccount가 있는 경우 현재 Users를 유지 (카카오 계정만 연결)
+
+                    // 3-8. 기존 Users 반환
+                    return existingUser;
+                } else {
+                    // 카카오 AuthAccount가 없으면 일반 사용자이므로 기존 로직대로 처리
+                    throw new GeneralException(ErrorStatus._DUPLICATE_EMAIL);
+                }
+            } else {
+                // 임시 이메일이 아니면 일반 사용자이므로 중복 에러
+                throw new GeneralException(ErrorStatus._DUPLICATE_EMAIL);
+            }
+        }
+
+        // 4. 입력한 이메일이 존재하지 않는 경우: 기존 로직대로 이메일 업데이트
+        currentUser.setEmail(request.getEmail());
+        return currentUser;
+    }
+
+    /**
+     * 임시 카카오 이메일인지 확인
+     * 형식: kakao_{externalId}@kakao.fitlink
+     */
+    private boolean isTemporaryKakaoEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        return email.matches("kakao_\\d+@kakao\\.fitlink");
     }
 }
