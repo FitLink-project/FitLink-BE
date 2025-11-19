@@ -55,7 +55,6 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             if (provider == Provider.KAKAO) {
                 email = generateTemporaryEmail(provider, externalId);
                 needsEmailUpdate = true;
-                log.warn("카카오 이메일이 없어 임시 이메일 생성: {}", email);
             } else {
                 OAuth2Error oauth2Error = new OAuth2Error(
                         "email_required",

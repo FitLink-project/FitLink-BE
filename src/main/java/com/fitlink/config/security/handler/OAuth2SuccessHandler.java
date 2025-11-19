@@ -56,9 +56,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             
             if (Boolean.TRUE.equals(needsEmailUpdate)) {
                 uriBuilder.queryParam("needsEmailUpdate", true);
-                log.warn("OAuth2 로그인 성공 (임시 이메일): {}", email);
-            } else {
-                log.info("OAuth2 로그인 성공: {}", email);
             }
             
             String targetUrl = uriBuilder.build()
