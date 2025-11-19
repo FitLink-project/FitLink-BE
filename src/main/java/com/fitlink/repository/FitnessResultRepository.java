@@ -11,5 +11,5 @@ import java.util.Optional;
 @Repository
 public interface FitnessResultRepository extends JpaRepository<FitnessResult, Long> {
 
-    Optional<FitnessResult> findByUsers(Users user);
+    Optional<FitnessResult> findByUser(Users user);
 }
