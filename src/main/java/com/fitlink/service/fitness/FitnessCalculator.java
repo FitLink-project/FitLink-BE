@@ -1,5 +1,6 @@
 package com.fitlink.service.fitness;
 
+import com.fitlink.service.fitness.standards.FitnessGrade;
 import org.springframework.stereotype.Component;
 
 /**
@@ -12,19 +13,19 @@ public class FitnessCalculator {
      * 큰 값이 좋을 때 점수를 계산
      *
      * @param value 측정값
-     * @param grade 1등급과 2등급 값 배열 [grade1, grade2]
+     * @param grade 1등급과 2등급 값 저장 객체
      * @return 계산된 점수 (0~100)
      */
-    public Float scoreHigherIsBetter(Float value, float[] grade) {
+    public Float scoreHigherIsBetter(Float value, FitnessGrade grade) {
         if (value == null) return 0f;
 
-        float maxValue = grade[0]; // 1등급
-        float minValue = grade[0] - 5 * (grade[0] - grade[1]); // 1등급과 6등급 정도의 차이라고 두었음
-        float midValue = (minValue + maxValue) / 2; // 중앙값
+        float maxValue = grade.getGrade1(); // 1등급
+        float minValue = grade.getGrade1() - 5 * (grade.getGrade1() - grade.getGrade2()); // 1~6등급 범위 가정
+        float midValue = (minValue + maxValue) / 2;
 
         float score = value <= midValue
-                ? linear(value, minValue, midValue, 0, 60) // 입력값이 중앙값보다 낮은 경우
-                : linear(value, midValue, maxValue, 60, 100); // 입력값이 중앙값보다 높은 경우
+                ? linear(value, minValue, midValue, 0, 60)
+                : linear(value, midValue, maxValue, 60, 100);
 
         return Math.max(0, score);
     }
@@ -33,19 +34,19 @@ public class FitnessCalculator {
      * 작은 값이 좋을 때 점수를 계산
      *
      * @param value 측정값
-     * @param grade 1등급과 2등급 값 배열 [grade1, grade2]
+     * @param grade 1등급과 2등급 값 저장 객체
      * @return 계산된 점수 (0~100)
      */
-    public Float scoreLowerIsBetter(Float value, float[] grade) {
+    public Float scoreLowerIsBetter(Float value, FitnessGrade grade) {
         if (value == null) return 0f;
 
-        float minValue = grade[0]; // 1등급
-        float maxValue = grade[1] + 5 * (grade[1] - grade[0]); // 1등급과 6등급 정도의 차이
-        float midValue = (minValue + maxValue) / 2; // 중앙값
+        float minValue = grade.getGrade1(); // 1등급
+        float maxValue = grade.getGrade2() + 5 * (grade.getGrade2() - grade.getGrade1()); // 1~6등급 범위 가정
+        float midValue = (minValue + maxValue) / 2;
 
         float score = value >= midValue
-                ? linear(value, maxValue, midValue, 0, 60) // 입력값이 중앙값보다 높은 경우
-                : linear(value, midValue, minValue, 60, 100); // 입력값이 중앙값보다 낮은 경우
+                ? linear(value, maxValue, midValue, 0, 60)
+                : linear(value, midValue, minValue, 60, 100);
 
         return Math.max(0, score);
     }
