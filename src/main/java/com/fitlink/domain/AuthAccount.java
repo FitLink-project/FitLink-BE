@@ -1,14 +1,13 @@
 package com.fitlink.domain;
 
+import com.fitlink.domain.enums.Provider;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "auth_account")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -23,15 +22,13 @@ public class AuthAccount {
     @JoinColumn(name = "users_id", nullable = false)
     private Users user;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String provider;
+    private Provider provider;
 
-    @Column(name = "social_token", length = 255)
+    @Column(name = "social_token", columnDefinition = "TEXT")
     private String socialToken;
-
-    @Column(name = "jwt_token", length = 255)
-    private String jwtToken;
-
+    
     @Column(name = "ext_id", length = 255)
     private String externalId;
 }

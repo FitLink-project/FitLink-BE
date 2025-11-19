@@ -1,60 +1,48 @@
 package com.fitlink.web.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import com.fitlink.validation.annotation.ValidEmail;
+import com.fitlink.validation.annotation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.List;
-
 public class UserRequestDTO {
 
     @Getter
     @Setter
     public static class JoinDTO {
-
-        @Schema(example = "蹂꾨챸")
         @NotBlank
-        String nickName;
+        String name;
 
-        @Schema(example = "example@gmail.com")
         @NotBlank
         @Email
+        @ValidEmail
         String email;
 
-        @Schema(example = "zaq123")
         @NotBlank
+        @ValidPassword
         String password;
-
-        @Schema(example = "0")
-        @NotNull
-        Integer gender;
-
-        @Schema(example = "0")
-        @NotNull
-        Integer job;
-
-        @Schema(example = "[\"CAREER\", \"STUDY\"]")
-        List<String> purposeList;
-
-        @Schema(example = "[\"IT\", \"DESIGN\"]")
-        List<String> interestList;
     }
 
     @Getter
     @Setter
     public static class LoginRequestDTO {
-        @Schema(example = "example@gmail.com")
-        @NotBlank(message = "?대찓?쇱? ?꾩닔?낅땲??")
-        @Email(message = "?щ컮瑜??대찓???뺤떇?댁뼱???⑸땲??")
+        @NotBlank(message = "이메일은 필수입니다")
+        @Email(message = "이메일 형식이 올바르지 않습니다")
         private String email;
 
-        @Schema(example = "zaq123")
-        @NotBlank(message = "?⑥뒪?뚮뱶???꾩닔?낅땲??")
+        @NotBlank(message = "비밀번호는 필수입니다")
         private String password;
 
+    }
+
+    @Getter
+    @Setter
+    public static class UpdateEmailDTO {
+        @NotBlank(message = "이메일은 필수입니다")
+        @Email(message = "이메일 형식이 올바르지 않습니다")
+        @ValidEmail
+        private String email;
     }
 }
 

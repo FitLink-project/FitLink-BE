@@ -10,12 +10,12 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum SuccessStatus implements BaseCode {
 
-    // ?쇰컲?곸씤 ?묐떟
-    _OK(HttpStatus.OK, "COMMON200", "?깃났?낅땲??"),
-    // ?앹꽦 愿???묐떟
-    _CREATED(HttpStatus.CREATED, "COMMON201", "?깃났?곸쑝濡??앹꽦(????섏뿀?듬땲??"),
-    // ?뚯썝媛??愿???묐떟
-    _NICKNAME_AVAILABLE(HttpStatus.ACCEPTED, "NICKNAME202", "?됰꽕??以묐났 ?뺤씤 ?깃났.")
+    // 일반 응답
+    _OK(HttpStatus.OK, "COMMON200", "성공했습니다."),
+    // 생성 관련 응답
+    _CREATED(HttpStatus.CREATED, "COMMON201", "성공적으로 생성(등록)되었습니다."),
+    // 회원 관련 응답
+    _NICKNAME_AVAILABLE(HttpStatus.ACCEPTED, "NICKNAME202", "닉네임이 중복되지 않아 사용 가능합니다.")
     ;
     private final HttpStatus httpStatus;
     private final String code;

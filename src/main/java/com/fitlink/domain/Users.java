@@ -1,8 +1,11 @@
 package com.fitlink.domain;
 
+import com.fitlink.domain.common.BaseEntity;
 import com.fitlink.domain.enums.Role;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
@@ -10,10 +13,9 @@ import java.time.LocalDateTime;
 @Table(name = "users")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Users {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@SuperBuilder
+public class Users extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,19 +25,17 @@ public class Users {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "name")
+    @NotNull
+    @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "password")
-    private String password;
+    private String password;  // 소셜 로그인 사용자는 null 가능
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
     @Builder.Default
     private Role role = Role.USER;
-
-    @Column(name = "reg_date")
-    private LocalDateTime regDate;
 
     @Column(name = "is_active")
     private Boolean isActive;

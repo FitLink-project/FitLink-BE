@@ -1,7 +1,10 @@
 package com.fitlink.config.security;
 
+import com.fitlink.config.security.handler.OAuth2FailureHandler;
+import com.fitlink.config.security.handler.OAuth2SuccessHandler;
 import com.fitlink.config.security.jwt.JwtAuthenticationFilter;
 import com.fitlink.config.security.jwt.JwtTokenProvider;
+import com.fitlink.service.OAuth2UserServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +13,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -24,6 +28,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final OAuth2UserServiceImpl oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final ClientRegistrationRepository clientRegistrationRepository;
+    private final OAuth2TokenExchangeLogger oAuth2TokenExchangeLogger;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -35,15 +44,36 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/", "/css/**",
                                 "/api/health/**",
-                                "/api/users/**",
-                                "/files/**"
+                                "/api/user/**",
+                                "/files/**",
+                                "/oauth2/**",
+                                "/login",
+                                "/login/oauth2/**"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)  // OAuth2 플로우 동안 세션 허용
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .loginPage("/login")  // 커스텀 로그인 페이지 사용 (LoginController에서 처리)
+                        .authorizationEndpoint(authorization -> authorization
+                                .baseUri("/oauth2/authorization")  // OAuth2 인증 엔드포인트 명시
+                                // scope 필터링 Resolver 제거 - application.properties의 scope 설정 사용
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/login/oauth2/code/*")  // OAuth2 콜백 엔드포인트 명시
+                        )
+                        .tokenEndpoint(token -> token
+                                .accessTokenResponseClient(oAuth2TokenExchangeLogger)  // 토큰 교환 로깅
+                        )
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(oAuth2UserService)
+                        )
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 

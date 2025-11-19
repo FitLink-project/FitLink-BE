@@ -25,10 +25,10 @@ public class Facility {
     @Column(nullable = false, length = 200)
     private String address;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Double latitude;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Double longitude;
 }
 
