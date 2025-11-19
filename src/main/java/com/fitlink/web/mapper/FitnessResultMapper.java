@@ -1,8 +1,6 @@
 package com.fitlink.web.mapper;
 
 import com.fitlink.domain.FitnessResult;
-import com.fitlink.web.dto.FitnessGeneralRequestDTO;
-import com.fitlink.web.dto.FitnessKookminRequestDTO;
 import com.fitlink.web.dto.FitnessResponseDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
