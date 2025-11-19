@@ -10,7 +10,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Getter
 @Setter
-public class FitnessKf100RequestDTO {
+public class FitnessKookminRequestDTO {
 
     @Schema(description = "성별(Sex) - 남성: 'M', 여성: 'F'로 구분", example = "M")
     private String sex;
