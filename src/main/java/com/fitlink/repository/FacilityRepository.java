@@ -11,6 +11,10 @@ import java.util.List;
 @Repository
 public interface FacilityRepository extends JpaRepository<Facility, Long> {
 
+
+    Facility findByName(String name);
+    // facility 중복 체크용
+
     @Query("""
         SELECT f,
             (6371000 * acos(
