@@ -15,7 +15,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import java.util.Comparator;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/fitness")
@@ -75,7 +76,7 @@ public class FitnessController {
     }
 
     /**
-     * 일반 체력 평가(General) 측정값을 기반으로 점수를 계산하여 반환함.
+     * 일반 체력 평가(General) 측정값을 기반으로 점수를 계산하고 DB에 새로운 결과를 저장함.
      *
      * @param request 일반 체력 측정값 DTO
      * @return 계산된 결과 DTO
@@ -99,7 +100,7 @@ public class FitnessController {
      * 국민체력 100 측정값을 기존 결과에 반영해 업데이트함.
      *
      * @param request 새로 전달된 국민체력 100 측정값 DTO
-     * @return 업데이트된 결과 DTO
+     * @return 업데이트된 전체 결과 DTO
      */
     @PatchMapping("/kookmin")
     public ApiResponse<FitnessResponseDTO> patchFitnessKf100(
@@ -109,13 +110,16 @@ public class FitnessController {
         Users user = getUserFromRequest(httpServletRequest);
         FitnessResponseDTO response = null;
 
-        // 기존 결과 조회
-        Optional<FitnessResult> existingOpt = fitnessResultRepository.findByUser(user);
-        if (existingOpt.isEmpty()) {
+        // 기존 결과 조회 (중복 레코드 대비 안전하게 처리)
+        List<FitnessResult> existingList = fitnessResultRepository.findByUser(user);
+        if (existingList.isEmpty()) {
             return ApiResponse.onFailure("NOT_FOUND", "저장된 측정 결과가 없습니다.", response);
         }
 
-        FitnessResult existing = existingOpt.get();
+        // 최신 레코드 선택
+        FitnessResult existing = existingList.stream()
+                .max(Comparator.comparing(FitnessResult::getCreatedAt))
+                .get();
 
         // 새로운 점수 계산
         response = fitnessScoreService.calculateKookmin(request);
@@ -124,6 +128,9 @@ public class FitnessController {
         fitnessResultMapper.updateEntityFromResponse(response, existing);
         fitnessResultRepository.save(existing);
 
+        // 업데이트 된 전체 결과 DTO
+        response = fitnessResultMapper.toResponseDTO(existing);
+
         return ApiResponse.onSuccess(response);
     }
 
@@ -131,7 +138,7 @@ public class FitnessController {
      * 일반 체력 측정값을 기존 결과에 업데이트함.
      *
      * @param request DTO 형태의 일반 체력 측정값
-     * @return 업데이트된 결과 DTO
+     * @return 업데이트된 전체 결과 DTO
      */
     @PatchMapping("/general")
     public ApiResponse<FitnessResponseDTO> patchFitnessGeneral(
@@ -141,17 +148,21 @@ public class FitnessController {
         Users user = getUserFromRequest(httpServletRequest);
         FitnessResponseDTO response = null;
 
-        Optional<FitnessResult> existingOpt = fitnessResultRepository.findByUser(user);
-        if (existingOpt.isEmpty()) {
+        List<FitnessResult> existingList = fitnessResultRepository.findByUser(user);
+        if (existingList.isEmpty()) {
             return ApiResponse.onFailure("NOT_FOUND", "저장된 측정 결과가 없습니다.", response);
         }
 
-        FitnessResult existing = existingOpt.get();
+        FitnessResult existing = existingList.stream()
+                .max(Comparator.comparing(FitnessResult::getCreatedAt))
+                .get();
 
         response = fitnessScoreService.calculateGeneral(request);
 
         fitnessResultMapper.updateEntityFromResponse(response, existing);
         fitnessResultRepository.save(existing);
+
+        response = fitnessResultMapper.toResponseDTO(existing);
 
         return ApiResponse.onSuccess(response);
     }
@@ -166,15 +177,20 @@ public class FitnessController {
 
         Users user = getUserFromRequest(httpServletRequest);
         FitnessResponseDTO response = null;
-        Optional<FitnessResult> entityOpt = fitnessResultRepository.findByUser(user);
 
-        if (entityOpt.isEmpty()) {
+        List<FitnessResult> entityList = fitnessResultRepository.findByUser(user);
+        if (entityList.isEmpty()) {
             return ApiResponse.onFailure("NOT_FOUND", "조회 가능한 결과가 없습니다.", response);
         }
 
-        FitnessResult entity = entityOpt.get();
-        response = fitnessResultMapper.toResponse(entity);
+        // 최신 레코드 선택
+        FitnessResult entity = entityList.stream()
+                .max(Comparator.comparing(FitnessResult::getCreatedAt))
+                .get();
+
+        response = fitnessResultMapper.toResponseDTO(entity);
 
         return ApiResponse.onSuccess(response);
     }
+
 }

@@ -35,9 +35,9 @@ public class FitnessScoreService {
         FitnessStandardSet standardSet = fitnessStandards.getStandard(sex, age);
 
         res.setStrength(calculator.scoreHigherIsBetter(dto.getGripStrength(), standardSet.getGripStrength()));
-        res.setMuscular(calculator.scoreHigherIsBetter(dto.getSitUp().floatValue(), standardSet.getSitUp()));
+        res.setMuscular(calculator.scoreHigherIsBetter(dto.getSitUp(), standardSet.getSitUp()));
         res.setFlexibility(calculator.scoreHigherIsBetter(dto.getSitAndReach(), standardSet.getSitAndReach()));
-        res.setCardiopulmonary(calculator.scoreHigherIsBetter(dto.getShuttleRun().floatValue(), standardSet.getShuttleRun()));
+        res.setCardiopulmonary(calculator.scoreHigherIsBetter(dto.getShuttleRun(), standardSet.getShuttleRun()));
         res.setAgility(calculator.scoreLowerIsBetter(dto.getSprint(), standardSet.getSprint()));
         res.setQuickness(calculator.scoreHigherIsBetter(dto.getStandingLongJump(), standardSet.getStandingLongJump()));
 
@@ -55,12 +55,12 @@ public class FitnessScoreService {
         int age = calculateAge(dto.getBirthDate());
         FitnessStandardSet standardSet = fitnessStandards.getStandard(sex, age);
 
-        res.setStrength(dto.getSliderStrength().floatValue());
-        res.setMuscular(calculator.scoreHigherIsBetter(dto.getSitUp().floatValue(), standardSet.getSitUp()));
+        res.setStrength(dto.getSliderStrength() == null ? null : dto.getSliderStrength().floatValue());
+        res.setMuscular(calculator.scoreHigherIsBetter(dto.getSitUp(), standardSet.getSitUp()));
         res.setFlexibility(calculator.scoreHigherIsBetter(dto.getSitAndReach(), standardSet.getSitAndReach()));
         res.setCardiopulmonary(calculator.scoreHigherIsBetter(dto.getYmcaStepTest(), standardSet.getShuttleRun()));
-        res.setAgility(dto.getSliderAgility().floatValue());
-        res.setQuickness(dto.getSliderPower().floatValue());
+        res.setAgility(dto.getSliderAgility() == null ? null : dto.getSliderAgility().floatValue());
+        res.setQuickness(dto.getSliderPower() == null ? null : dto.getSliderPower().floatValue());
 
         return res;
     }

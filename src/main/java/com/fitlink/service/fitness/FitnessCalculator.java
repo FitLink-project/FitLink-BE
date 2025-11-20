@@ -10,45 +10,49 @@ import org.springframework.stereotype.Component;
 public class FitnessCalculator {
 
     /**
-     * 큰 값이 좋을 때 점수를 계산
+     * value를 float으로 형변환 하고 큰 값이 좋을 때 점수를 계산
      *
      * @param value 측정값
      * @param grade 1등급과 2등급 값 저장 객체
      * @return 계산된 점수 (0~100)
      */
-    public Float scoreHigherIsBetter(Float value, FitnessGrade grade) {
-        if (value == null) return 0f;
+    public <T extends Number> Float scoreHigherIsBetter(T value, FitnessGrade grade) {
+        if (value == null) return null;
 
-        float maxValue = grade.getGrade1(); // 1등급
-        float minValue = grade.getGrade1() - 5 * (grade.getGrade1() - grade.getGrade2()); // 1~6등급 범위 가정
+        float val = value.floatValue();
+
+        float maxValue = grade.getGrade1();
+        float minValue = grade.getGrade1() - 5 * (grade.getGrade1() - grade.getGrade2());
         float midValue = (minValue + maxValue) / 2;
 
-        float score = value <= midValue
-                ? linear(value, minValue, midValue, 0, 60)
-                : linear(value, midValue, maxValue, 60, 100);
+        float score = val <= midValue
+                ? linear(val, minValue, midValue, 0, 60)
+                : linear(val, midValue, maxValue, 60, 100);
 
-        return Math.max(0, score);
+        return Math.round(Math.max(0, score) * 10) / 10f;
     }
 
     /**
-     * 작은 값이 좋을 때 점수를 계산
+     * value를 float으로 형변환 하고 작은 값이 좋을 때 점수를 계산
      *
      * @param value 측정값
      * @param grade 1등급과 2등급 값 저장 객체
      * @return 계산된 점수 (0~100)
      */
-    public Float scoreLowerIsBetter(Float value, FitnessGrade grade) {
-        if (value == null) return 0f;
+    public <T extends Number> Float scoreLowerIsBetter(T value, FitnessGrade grade) {
+        if (value == null) return null;
 
-        float minValue = grade.getGrade1(); // 1등급
-        float maxValue = grade.getGrade2() + 5 * (grade.getGrade2() - grade.getGrade1()); // 1~6등급 범위 가정
+        float val = value.floatValue();
+
+        float minValue = grade.getGrade1();
+        float maxValue = grade.getGrade2() + 5 * (grade.getGrade2() - grade.getGrade1());
         float midValue = (minValue + maxValue) / 2;
 
-        float score = value >= midValue
-                ? linear(value, maxValue, midValue, 0, 60)
-                : linear(value, midValue, minValue, 60, 100);
+        float score = val >= midValue
+                ? linear(val, maxValue, midValue, 0, 60)
+                : linear(val, midValue, minValue, 60, 100);
 
-        return Math.max(0, score);
+        return Math.round(Math.max(0, score) * 10) / 10f;
     }
 
     /**

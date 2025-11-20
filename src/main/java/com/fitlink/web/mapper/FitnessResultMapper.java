@@ -8,7 +8,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
 import org.mapstruct.MappingTarget;
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, nullValuePropertyMappingStrategy = org.mapstruct.NullValuePropertyMappingStrategy.IGNORE)
 public interface FitnessResultMapper {
 
     // Entity -> DTO
@@ -30,8 +30,6 @@ public interface FitnessResultMapper {
     @Mapping(target = "agility", source = "dto.agility")
     @Mapping(target = "quickness", source = "dto.quickness")
     FitnessResult toEntity(FitnessResponseDTO dto, Users user);
-
-    FitnessResponseDTO toResponse(FitnessResult entity);
 
     // UPDATE: DTO -> Entity
     @Mapping(target = "user", ignore = true) // user는 변경하지 않음
