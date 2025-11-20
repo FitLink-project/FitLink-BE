@@ -1,6 +1,7 @@
 package com.fitlink.service;
 
 import com.fitlink.web.dto.FacilityDetailResponseDTO;
+import com.fitlink.web.dto.FacilityProgramsResponseDTO;
 import com.fitlink.web.dto.NearByRequestDTO;
 import com.fitlink.web.dto.NearbyFacilityResponseDTO;
 
@@ -12,4 +13,5 @@ public interface FacilityService {
 
     FacilityDetailResponseDTO getFacilityDetail(Long facilityId); // 상세 조회
 
+    FacilityProgramsResponseDTO getFacilityPrograms(Long facilityId);
 }
