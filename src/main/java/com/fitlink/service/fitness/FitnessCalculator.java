@@ -27,7 +27,10 @@ public class FitnessCalculator {
                 ? linear(value, minValue, midValue, 0, 60)
                 : linear(value, midValue, maxValue, 60, 100);
 
-        return Math.max(0, score);
+        score = Math.max(0, score);
+
+        // 소수점 1자리로 반올림
+        return Math.round(score * 10) / 10f;
     }
 
     /**
@@ -48,7 +51,10 @@ public class FitnessCalculator {
                 ? linear(value, maxValue, midValue, 0, 60)
                 : linear(value, midValue, minValue, 60, 100);
 
-        return Math.max(0, score);
+        score = Math.max(0, score);
+
+        // 소수점 1자리로 반올림
+        return Math.round(score * 10) / 10f;
     }
 
     /**
