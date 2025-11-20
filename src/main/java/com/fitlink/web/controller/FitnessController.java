@@ -15,7 +15,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import java.util.Comparator;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/fitness")
@@ -109,13 +110,16 @@ public class FitnessController {
         Users user = getUserFromRequest(httpServletRequest);
         FitnessResponseDTO response = null;
 
-        // 기존 결과 조회
-        Optional<FitnessResult> existingOpt = fitnessResultRepository.findByUser(user);
-        if (existingOpt.isEmpty()) {
+        // 기존 결과 조회 (중복 레코드 대비 안전하게 처리)
+        List<FitnessResult> existingList = fitnessResultRepository.findByUser(user);
+        if (existingList.isEmpty()) {
             return ApiResponse.onFailure("NOT_FOUND", "저장된 측정 결과가 없습니다.", response);
         }
 
-        FitnessResult existing = existingOpt.get();
+        // 최신 레코드 선택
+        FitnessResult existing = existingList.stream()
+                .max(Comparator.comparing(FitnessResult::getCreatedAt))
+                .get();
 
         // 새로운 점수 계산
         response = fitnessScoreService.calculateKookmin(request);
@@ -144,12 +148,14 @@ public class FitnessController {
         Users user = getUserFromRequest(httpServletRequest);
         FitnessResponseDTO response = null;
 
-        Optional<FitnessResult> existingOpt = fitnessResultRepository.findByUser(user);
-        if (existingOpt.isEmpty()) {
+        List<FitnessResult> existingList = fitnessResultRepository.findByUser(user);
+        if (existingList.isEmpty()) {
             return ApiResponse.onFailure("NOT_FOUND", "저장된 측정 결과가 없습니다.", response);
         }
 
-        FitnessResult existing = existingOpt.get();
+        FitnessResult existing = existingList.stream()
+                .max(Comparator.comparing(FitnessResult::getCreatedAt))
+                .get();
 
         response = fitnessScoreService.calculateGeneral(request);
 
@@ -171,15 +177,20 @@ public class FitnessController {
 
         Users user = getUserFromRequest(httpServletRequest);
         FitnessResponseDTO response = null;
-        Optional<FitnessResult> entityOpt = fitnessResultRepository.findByUser(user);
 
-        if (entityOpt.isEmpty()) {
+        List<FitnessResult> entityList = fitnessResultRepository.findByUser(user);
+        if (entityList.isEmpty()) {
             return ApiResponse.onFailure("NOT_FOUND", "조회 가능한 결과가 없습니다.", response);
         }
 
-        FitnessResult entity = entityOpt.get();
+        // 최신 레코드 선택
+        FitnessResult entity = entityList.stream()
+                .max(Comparator.comparing(FitnessResult::getCreatedAt))
+                .get();
+
         response = fitnessResultMapper.toResponseDTO(entity);
 
         return ApiResponse.onSuccess(response);
     }
+
 }
