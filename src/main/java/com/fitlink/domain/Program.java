@@ -32,7 +32,7 @@ public class Program {
     @Column(name = "days", length = 100)
     private String days;
 
-    @Column(name = "time", length = 30)
+    @Column(name = "time", columnDefinition = "TEXT")
     private String time;
 
     @Column(name = "capacity")
