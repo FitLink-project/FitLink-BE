@@ -168,6 +168,13 @@ public class UserServiceImpl implements UserService {
         return currentUser;
     }
 
+    @Override
+    public UserResponseDTO.UserProfileDTO getProfile(Long userId){
+        //1.  사용자 확인
+        //2. repository에서 사용자 정보 가져오기
+        //3. mapper로 사용자 정보 반환하기
+    }
+
     /**
      * 임시 카카오 이메일인지 확인
      * 형식: kakao_{externalId}@kakao.fitlink

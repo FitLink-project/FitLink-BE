@@ -42,4 +42,11 @@ public class UserController {
         Users user = userService.updateEmail(userDetails.getUsers().getId(), request);
         return ApiResponse.onSuccess(userMapper.toJoinResultDTO(user));
     }
+
+    @GetMapping(value="/user/profile")
+    public ApiResponse<UserResponseDTO.UserProfileDTO> getProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ){
+        UserResponseDTO.UserProfileDTO userProfileDTO =userService.getProfile(userDetails.getUserId());
+    }
 }
