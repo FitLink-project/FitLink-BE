@@ -1,0 +1,45 @@
+package com.fitlink.service;
+
+import com.fitlink.service.FacilityService;
+import com.fitlink.domain.Facility;
+import com.fitlink.repository.FacilityRepository;
+import com.fitlink.web.dto.NearByRequestDTO;
+import com.fitlink.web.dto.NearbyFacilityResponseDTO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class FacilityServiceImpl implements FacilityService {
+
+    private final FacilityRepository facilityRepository;
+    private final double SEARCH_RADIUS = 10000; // 10km
+
+    @Override
+    public List<NearbyFacilityResponseDTO> getNearbyFacilities(NearByRequestDTO req) {
+
+        List<Object[]> result = facilityRepository.findNearby(
+                req.getLatitude(),
+                req.getLongitude(),
+                SEARCH_RADIUS
+        );
+
+        return result.stream()
+                .map(obj -> {
+                    Facility f = (Facility) obj[0];
+                    double distance = (double) obj[1];
+
+                    return NearbyFacilityResponseDTO.builder()
+                            .facilityId(f.getId())
+                            .facilityName(f.getName())
+                            .address(f.getAddress())
+                            .latitude(f.getLatitude())
+                            .longitude(f.getLongitude())
+                            .distance(Math.round(distance))
+                            .build();
+                })
+                .toList();
+    }
+}

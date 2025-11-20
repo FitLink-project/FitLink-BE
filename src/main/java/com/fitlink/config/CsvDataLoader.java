@@ -1,9 +1,10 @@
 package com.fitlink.config;
 
 import com.fitlink.domain.Facility;
-import com.fitlink.domain.FacilityRepository;
+
 import com.fitlink.domain.Program;
 import com.fitlink.domain.ProgramRepository;
+import com.fitlink.repository.FacilityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
