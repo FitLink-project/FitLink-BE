@@ -3,6 +3,7 @@ package com.fitlink.web.controller;
 import com.fitlink.apiPayload.ApiResponse;
 import com.fitlink.service.FacilityService;
 import com.fitlink.web.dto.FacilityDetailResponseDTO;
+import com.fitlink.web.dto.FacilityProgramsResponseDTO;
 import com.fitlink.web.dto.NearByRequestDTO;
 import com.fitlink.web.dto.NearbyFacilityResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -32,5 +33,15 @@ public class FacilityController {
         FacilityDetailResponseDTO dto = facilityService.getFacilityDetail(facilityId);
         return ApiResponse.onSuccess(dto);
     }// 공공체육시설 상세 조회
+
+
+    @GetMapping("/{facilityId}/programs")
+    public ApiResponse<?> getFacilityPrograms(@PathVariable Long facilityId) {
+
+        FacilityProgramsResponseDTO dto = facilityService.getFacilityPrograms(facilityId);
+
+        return ApiResponse.onSuccess(dto);
+    }// 공공체육시설 프로그램 조회
+
 
 }

@@ -20,5 +20,12 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
     """)
     List<String> findTop2NamesByFacilityId(@Param("facilityId") Long facilityId, Pageable pageable);
 
+    @Query("""
+    SELECT p FROM Program p
+    WHERE p.facility.id = :facilityId
+    """)
+    List<Program> findByFacilityId(@Param("facilityId") Long facilityId);//체육시설ID로 프로그램 조회
+
+
 }
 
