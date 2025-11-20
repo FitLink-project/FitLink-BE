@@ -30,5 +30,8 @@ public class Facility {
 
     @Column(nullable = true)
     private Double longitude;
+
+    @Column(nullable = true, length = 500)
+    private String homepageUrl; // 시설 홈페이지 URL 추가
 }
 
