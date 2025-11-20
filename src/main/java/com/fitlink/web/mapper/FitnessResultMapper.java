@@ -31,8 +31,6 @@ public interface FitnessResultMapper {
     @Mapping(target = "quickness", source = "dto.quickness")
     FitnessResult toEntity(FitnessResponseDTO dto, Users user);
 
-    FitnessResponseDTO toResponse(FitnessResult entity);
-
     // UPDATE: DTO -> Entity
     @Mapping(target = "user", ignore = true) // user는 변경하지 않음
     @Mapping(target = "id", ignore = true)   // PK는 변경하지 않음

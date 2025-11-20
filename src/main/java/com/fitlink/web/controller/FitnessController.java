@@ -75,7 +75,7 @@ public class FitnessController {
     }
 
     /**
-     * 일반 체력 평가(General) 측정값을 기반으로 점수를 계산하여 반환함.
+     * 일반 체력 평가(General) 측정값을 기반으로 점수를 계산하고 DB에 새로운 결과를 저장함.
      *
      * @param request 일반 체력 측정값 DTO
      * @return 계산된 결과 DTO
@@ -99,7 +99,7 @@ public class FitnessController {
      * 국민체력 100 측정값을 기존 결과에 반영해 업데이트함.
      *
      * @param request 새로 전달된 국민체력 100 측정값 DTO
-     * @return 업데이트된 결과 DTO
+     * @return 업데이트된 전체 결과 DTO
      */
     @PatchMapping("/kookmin")
     public ApiResponse<FitnessResponseDTO> patchFitnessKf100(
@@ -124,6 +124,9 @@ public class FitnessController {
         fitnessResultMapper.updateEntityFromResponse(response, existing);
         fitnessResultRepository.save(existing);
 
+        // 업데이트 된 전체 결과 DTO
+        response = fitnessResultMapper.toResponseDTO(existing);
+
         return ApiResponse.onSuccess(response);
     }
 
@@ -131,7 +134,7 @@ public class FitnessController {
      * 일반 체력 측정값을 기존 결과에 업데이트함.
      *
      * @param request DTO 형태의 일반 체력 측정값
-     * @return 업데이트된 결과 DTO
+     * @return 업데이트된 전체 결과 DTO
      */
     @PatchMapping("/general")
     public ApiResponse<FitnessResponseDTO> patchFitnessGeneral(
@@ -153,6 +156,8 @@ public class FitnessController {
         fitnessResultMapper.updateEntityFromResponse(response, existing);
         fitnessResultRepository.save(existing);
 
+        response = fitnessResultMapper.toResponseDTO(existing);
+
         return ApiResponse.onSuccess(response);
     }
 
@@ -173,7 +178,7 @@ public class FitnessController {
         }
 
         FitnessResult entity = entityOpt.get();
-        response = fitnessResultMapper.toResponse(entity);
+        response = fitnessResultMapper.toResponseDTO(entity);
 
         return ApiResponse.onSuccess(response);
     }
