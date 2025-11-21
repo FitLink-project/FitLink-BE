@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * 서울올림픽기념국민체육진흥공단의 '국민체력100 동영상 정보' API 호출을 위한 Feign Client.
  */
-@FeignClient(name = "kf100-video-api", url = "https://${kf100.base-url}")
+@FeignClient(name = "kf100-video-api", url = "https://${kf100.base-url}", configuration = FeignConfig.class)
 public interface FitnessVideoFeignClient {
 
     /**
