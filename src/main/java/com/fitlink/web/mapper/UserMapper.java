@@ -29,5 +29,9 @@ public interface UserMapper {
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "accessToken", source = "accessToken")
     UserResponseDTO.LoginResultDTO toLoginResultDTO(Users user, String accessToken);
+
+    //Users -> UserProfileDTO
+    @Mapping(target = "userId", source = "id")
+    UserResponseDTO.UserProfileDTO toUserProfileDTO(Users user);
 }
 

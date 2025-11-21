@@ -9,6 +9,9 @@ import com.fitlink.domain.enums.Provider;
 import com.fitlink.repository.AuthAccountRepository;
 import com.fitlink.repository.UserRepository;
 import com.fitlink.storage.FileStorageService;
+import com.fitlink.util.EmailUtil;
+import com.fitlink.util.UserUtil;
+import com.fitlink.validation.validator.UserValidator;
 import com.fitlink.web.dto.UserRequestDTO;
 import com.fitlink.web.dto.UserResponseDTO;
 import com.fitlink.web.mapper.UserMapper;
@@ -37,16 +40,16 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserUtil userUtil;
+    private final EmailUtil emailUtil;
+    private final UserValidator userValidator;
 
     @Override
     public Users joinUser(UserRequestDTO.JoinDTO joinDTO, MultipartFile Img){
         // 이메일 형식과 비밀번호 형식은 @ValidEmail, @ValidPassword 어노테이션으로 검증됨
         
         // 0. 이메일 중복 체크
-        userRepository.findByEmail(joinDTO.getEmail())
-                .ifPresent(user -> {
-                    throw new GeneralException(ErrorStatus._DUPLICATE_EMAIL);
-                });
+        userValidator.validateEmailNotDuplicate(joinDTO.getEmail());
         
         // 1. 프로필 이미지 저장 (optional)
         String profileUrl = Optional.ofNullable(Img)
@@ -79,16 +82,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserResponseDTO.LoginResultDTO loginUser(UserRequestDTO.@Valid LoginRequestDTO request){
         //1. email있는지 찾기
-        Users user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new GeneralException(ErrorStatus._USER_NOT_FOUND));
+        Users user = userUtil.findByEmailOrThrow(request.getEmail());
         //2. 사용자 활성화 여부 체크
-        if(Boolean.FALSE.equals(user.getIsActive())){
-            throw new GeneralException(ErrorStatus._USER_INACTIVE);
-        }
-        //3. 비밀먼호 매치 확인
-        if(!passwordEncoder.matches(request.getPassword(), user.getPassword())){
-            throw new GeneralException(ErrorStatus._LOGIN_FAILED);
-        }
+        userValidator.validateUserActive(user);
+        //3. 비밀번호 매치 확인
+        userValidator.validatePasswordMatch(request.getPassword(), user.getPassword(), passwordEncoder);
         //4. 권한 정보 부여 & 인증 객체 생성 (표준 방식)
         List<GrantedAuthority> authorities =
                 Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()));
@@ -107,8 +105,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public Users updateEmail(Long userId, UserRequestDTO.UpdateEmailDTO request) {
         // 1. 사용자 확인
-        Users currentUser = userRepository.findById(userId)
-                .orElseThrow(() -> new GeneralException(ErrorStatus._USER_NOT_FOUND));
+        Users currentUser = userUtil.findByIdOrThrow(userId);
 
         // 2. 새 이메일이 현재 이메일과 같은 경우 그대로 반환
         if (currentUser.getEmail().equals(request.getEmail())) {
@@ -123,7 +120,7 @@ public class UserServiceImpl implements UserService {
             Users existingUser = existingUserOpt.get();
 
             // 3-2. 현재 Users가 임시 이메일로 생성된 카카오 사용자인지 확인
-            if (isTemporaryKakaoEmail(currentUser.getEmail())) {
+            if (emailUtil.isTemporaryKakaoEmail(currentUser.getEmail())) {
                 // 3-3. 현재 Users의 카카오 AuthAccount 찾기
                 Optional<AuthAccount> kakaoAuthAccountOpt = authAccountRepository
                         .findByUserAndProvider(currentUser, Provider.KAKAO);
@@ -170,19 +167,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponseDTO.UserProfileDTO getProfile(Long userId){
-        //1.  사용자 확인
-        //2. repository에서 사용자 정보 가져오기
-        //3. mapper로 사용자 정보 반환하기
-    }
-
-    /**
-     * 임시 카카오 이메일인지 확인
-     * 형식: kakao_{externalId}@kakao.fitlink
-     */
-    private boolean isTemporaryKakaoEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return false;
-        }
-        return email.matches("kakao_\\d+@kakao\\.fitlink");
+        //1. 사용자 확인
+        Users currentUser = userUtil.findByIdOrThrow(userId);
+        //2. mapper로 사용자 정보 반환하기
+        return userMapper.toUserProfileDTO(currentUser);
     }
 }

@@ -23,8 +23,8 @@ public class UserController {
     @PostMapping(value = "/join", consumes = "multipart/form-data")
     public ApiResponse<UserResponseDTO.JoinResultDTO> join(
             @ModelAttribute @Valid UserRequestDTO.JoinDTO request, MultipartFile Img) {
-        
-        Users user = userService.joinUser(request,Img);
+
+        Users user = userService.joinUser(request, Img);
         return ApiResponse.onSuccess(userMapper.toJoinResultDTO(user));
     }
 
@@ -43,10 +43,11 @@ public class UserController {
         return ApiResponse.onSuccess(userMapper.toJoinResultDTO(user));
     }
 
-    @GetMapping(value="/user/profile")
+    @GetMapping(value = "/profile")
     public ApiResponse<UserResponseDTO.UserProfileDTO> getProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails
-    ){
-        UserResponseDTO.UserProfileDTO userProfileDTO =userService.getProfile(userDetails.getUserId());
+    ) {
+        UserResponseDTO.UserProfileDTO userProfileDTO = userService.getProfile(userDetails.getUserId());
+        return ApiResponse.onSuccess(userProfileDTO);
     }
 }
