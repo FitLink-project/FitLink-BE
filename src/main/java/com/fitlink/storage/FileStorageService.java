@@ -78,6 +78,36 @@ public class FileStorageService {
         return buildFileUrl(fileName);
     }
 
+    /**
+     * 기존 URL(상대 경로 또는 절대 경로)을 절대 URL로 변환합니다.
+     * base-url이 설정되어 있으면 절대 URL로 변환하고, 없으면 원본을 반환합니다.
+     *
+     * @param url 변환할 URL (상대 경로 또는 절대 경로)
+     * @return 절대 URL 또는 원본 URL
+     */
+    public String convertToAbsoluteUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return url;
+        }
+
+        // 이미 절대 URL인 경우 (http:// 또는 https://로 시작)
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+
+        // base-url이 설정되어 있지 않으면 원본 반환
+        if (!StringUtils.hasText(fileBaseUrl)) {
+            return url;
+        }
+
+        // 상대 경로인 경우 절대 URL로 변환
+        String normalizedUrl = url.startsWith("/") ? url : "/" + url;
+        String baseUrl = fileBaseUrl.endsWith("/") 
+                ? fileBaseUrl.substring(0, fileBaseUrl.length() - 1) 
+                : fileBaseUrl;
+        return baseUrl + normalizedUrl;
+    }
+
     private Path getUploadRoot() {
         try {
             Path root = Paths.get(fileDir).toAbsolutePath().normalize();
@@ -105,11 +135,10 @@ public class FileStorageService {
         
         // base-url이 설정되어 있으면 절대 URL 반환, 없으면 상대 경로 반환
         if (StringUtils.hasText(fileBaseUrl)) {
-            String baseUrl = ensureTrailingSlash(fileBaseUrl);
-            // base-url이 이미 /images/를 포함하고 있으면 중복 제거
-            if (baseUrl.endsWith(fileUrlPrefix)) {
-                return baseUrl + fileName;
-            }
+            // baseUrl 끝의 슬래시 제거 후 상대 경로 추가 (상대 경로가 이미 /로 시작하므로)
+            String baseUrl = fileBaseUrl.endsWith("/") 
+                    ? fileBaseUrl.substring(0, fileBaseUrl.length() - 1) 
+                    : fileBaseUrl;
             return baseUrl + relativePath;
         }
         

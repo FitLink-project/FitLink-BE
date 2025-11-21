@@ -170,7 +170,13 @@ public class UserServiceImpl implements UserService {
         //1. 사용자 확인
         Users currentUser = userUtil.findByIdOrThrow(userId);
         //2. mapper로 사용자 정보 반환하기
-        return userMapper.toUserProfileDTO(currentUser);
+        UserResponseDTO.UserProfileDTO profileDTO = userMapper.toUserProfileDTO(currentUser);
+        //3. profileUrl을 절대 URL로 변환 (기존 상대 경로도 절대 URL로 변환)
+        if (profileDTO.getProfileUrl() != null) {
+            String absoluteUrl = fileStorageService.convertToAbsoluteUrl(profileDTO.getProfileUrl());
+            profileDTO.setProfileUrl(absoluteUrl);
+        }
+        return profileDTO;
     }
     @Override
     public UserResponseDTO.UserProfileDTO editProfile(Long userId, UserRequestDTO.@Valid EditProfileDTO request, MultipartFile img){
