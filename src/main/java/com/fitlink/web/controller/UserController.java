@@ -50,4 +50,13 @@ public class UserController {
         UserResponseDTO.UserProfileDTO userProfileDTO = userService.getProfile(userDetails.getUserId());
         return ApiResponse.onSuccess(userProfileDTO);
     }
+
+    @PatchMapping(value = "/edit")
+    public ApiResponse<UserResponseDTO.UserProfileDTO> edit(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @ModelAttribute @Valid UserRequestDTO.EditProfileDTO request, MultipartFile Img
+    ){
+        UserResponseDTO.UserProfileDTO userProfileDTO = userService.editProfile(userDetails.getUserId(),request,Img);
+        return ApiResponse.onSuccess(userProfileDTO);
+    }
 }

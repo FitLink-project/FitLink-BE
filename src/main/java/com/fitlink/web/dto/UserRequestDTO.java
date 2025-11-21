@@ -44,5 +44,17 @@ public class UserRequestDTO {
         @ValidEmail
         private String email;
     }
+
+    @Getter
+    @Setter
+    public static class EditProfileDTO {
+        String name;
+
+        @ValidEmail
+        String email;
+
+        @ValidPassword
+        String password;
+    }
 }
 

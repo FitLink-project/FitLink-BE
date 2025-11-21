@@ -24,6 +24,9 @@ public class FileStorageService {
     @Value("${file.url}")
     private String fileUrlPrefix;
 
+    @Value("${file.base-url:}")
+    private String fileBaseUrl;
+
     public String uploadFile(MultipartFile multipartFile) {
         if (multipartFile == null || multipartFile.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 파일이 존재하지 않습니다.");
@@ -98,7 +101,19 @@ public class FileStorageService {
     }
 
     private String buildFileUrl(String fileName) {
-        return ensureTrailingSlash(fileUrlPrefix) + fileName;
+        String relativePath = ensureTrailingSlash(fileUrlPrefix) + fileName;
+        
+        // base-url이 설정되어 있으면 절대 URL 반환, 없으면 상대 경로 반환
+        if (StringUtils.hasText(fileBaseUrl)) {
+            String baseUrl = ensureTrailingSlash(fileBaseUrl);
+            // base-url이 이미 /images/를 포함하고 있으면 중복 제거
+            if (baseUrl.endsWith(fileUrlPrefix)) {
+                return baseUrl + fileName;
+            }
+            return baseUrl + relativePath;
+        }
+        
+        return relativePath;
     }
 
     private String ensureTrailingSlash(String path) {

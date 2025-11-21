@@ -172,4 +172,41 @@ public class UserServiceImpl implements UserService {
         //2. mapper로 사용자 정보 반환하기
         return userMapper.toUserProfileDTO(currentUser);
     }
+    @Override
+    public UserResponseDTO.UserProfileDTO editProfile(Long userId, UserRequestDTO.@Valid EditProfileDTO request, MultipartFile img){
+        //1. 사용자 확인
+        Users currentUser = userUtil.findByIdOrThrow(userId);
+        
+        //2. 이름 업데이트 (제공된 경우)
+        Optional.ofNullable(request.getName())
+                .filter(name -> !name.isBlank())
+                .ifPresent(currentUser::setName);
+        
+        //3. 이메일 업데이트 (제공된 경우)
+        Optional.ofNullable(request.getEmail())
+                .filter(email -> !email.isBlank())
+                .ifPresent(email -> {
+                    // 이메일이 변경되는 경우에만 중복 체크
+                    if (!currentUser.getEmail().equals(email)) {
+                        userValidator.validateEmailNotDuplicate(email);
+                        currentUser.setEmail(email);
+                    }
+                });
+        
+        //4. 비밀번호 업데이트 (제공된 경우)
+        Optional.ofNullable(request.getPassword())
+                .filter(password -> !password.isBlank())
+                .ifPresent(password -> currentUser.setPassword(passwordEncoder.encode(password)));
+        
+        //5. 프로필 이미지 업로드 (제공된 경우)
+        Optional.ofNullable(img)
+                .filter(file -> !file.isEmpty())
+                .map(fileStorageService::uploadFile)
+                .ifPresent(currentUser::setProfileUrl);
+        
+        //6. 저장 후 DTO로 변환하여 반환
+        Users savedUser = userRepository.save(currentUser);
+        return userMapper.toUserProfileDTO(savedUser);
+    }
+
 }
