@@ -29,5 +29,12 @@ public interface UserMapper {
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "accessToken", source = "accessToken")
     UserResponseDTO.LoginResultDTO toLoginResultDTO(Users user, String accessToken);
+
+    //Users -> UserProfileDTO
+    @Mapping(target = "userId", source = "id")
+    @Mapping(target = "regDate", source = "createdAt")
+    @Mapping(target = "provider", ignore = true)  // 서비스에서 설정
+    @Mapping(target = "agreements", ignore = true)  // 서비스에서 설정
+    UserResponseDTO.UserProfileDTO toUserProfileDTO(Users user);
 }
 

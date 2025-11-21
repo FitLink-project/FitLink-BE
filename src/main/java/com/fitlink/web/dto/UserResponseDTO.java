@@ -3,10 +3,7 @@ package com.fitlink.web.dto;
 import com.fitlink.domain.enums.Role;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -30,15 +27,31 @@ public class UserResponseDTO {
     }
     @Builder
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UserProfileDTO{
         Long userId;
         String email;
         String name;
-        Boolean isActive;
-        LocalDateTime deleteDate;
         String profileUrl;
+        Boolean isActive;
+        LocalDateTime regDate;
+        String provider;
+        LocalDateTime deleteDate;
+        AgreementsDTO agreements;
+    }
+
+    @Builder
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AgreementsDTO {
+        Boolean privacy;
+        Boolean service;
+        Boolean over14;
+        Boolean location;
     }
 
 }

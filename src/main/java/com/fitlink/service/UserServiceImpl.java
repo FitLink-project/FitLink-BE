@@ -3,12 +3,17 @@ package com.fitlink.service;
 import com.fitlink.apiPayload.code.status.ErrorStatus;
 import com.fitlink.apiPayload.exception.GeneralException;
 import com.fitlink.config.security.jwt.JwtTokenProvider;
+import com.fitlink.domain.Agreement;
 import com.fitlink.domain.AuthAccount;
 import com.fitlink.domain.Users;
 import com.fitlink.domain.enums.Provider;
+import com.fitlink.repository.AgreementRepository;
 import com.fitlink.repository.AuthAccountRepository;
 import com.fitlink.repository.UserRepository;
 import com.fitlink.storage.FileStorageService;
+import com.fitlink.util.EmailUtil;
+import com.fitlink.util.UserUtil;
+import com.fitlink.validation.validator.UserValidator;
 import com.fitlink.web.dto.UserRequestDTO;
 import com.fitlink.web.dto.UserResponseDTO;
 import com.fitlink.web.mapper.UserMapper;
@@ -34,19 +39,20 @@ public class UserServiceImpl implements UserService {
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
     private final AuthAccountRepository authAccountRepository;
+    private final AgreementRepository agreementRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserUtil userUtil;
+    private final EmailUtil emailUtil;
+    private final UserValidator userValidator;
 
     @Override
     public Users joinUser(UserRequestDTO.JoinDTO joinDTO, MultipartFile Img){
         // 이메일 형식과 비밀번호 형식은 @ValidEmail, @ValidPassword 어노테이션으로 검증됨
         
         // 0. 이메일 중복 체크
-        userRepository.findByEmail(joinDTO.getEmail())
-                .ifPresent(user -> {
-                    throw new GeneralException(ErrorStatus._DUPLICATE_EMAIL);
-                });
+        userValidator.validateEmailNotDuplicate(joinDTO.getEmail());
         
         // 1. 프로필 이미지 저장 (optional)
         String profileUrl = Optional.ofNullable(Img)
@@ -73,22 +79,27 @@ public class UserServiceImpl implements UserService {
                 .build();
         authAccountRepository.save(authAccount);
         
+        // 5. Agreement 생성 (약관 동의)
+        Agreement agreement = Agreement.builder()
+                .user(savedUser)
+                .privacy(joinDTO.getAgreements().getPrivacy())
+                .service(joinDTO.getAgreements().getService())
+                .over14(joinDTO.getAgreements().getOver14())
+                .location(Optional.ofNullable(joinDTO.getAgreements().getLocation()).orElse(false))
+                .build();
+        agreementRepository.save(agreement);
+        
         return savedUser;
     }
     
     @Override
     public UserResponseDTO.LoginResultDTO loginUser(UserRequestDTO.@Valid LoginRequestDTO request){
         //1. email있는지 찾기
-        Users user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new GeneralException(ErrorStatus._USER_NOT_FOUND));
+        Users user = userUtil.findByEmailOrThrow(request.getEmail());
         //2. 사용자 활성화 여부 체크
-        if(Boolean.FALSE.equals(user.getIsActive())){
-            throw new GeneralException(ErrorStatus._USER_INACTIVE);
-        }
-        //3. 비밀먼호 매치 확인
-        if(!passwordEncoder.matches(request.getPassword(), user.getPassword())){
-            throw new GeneralException(ErrorStatus._LOGIN_FAILED);
-        }
+        userValidator.validateUserActive(user);
+        //3. 비밀번호 매치 확인
+        userValidator.validatePasswordMatch(request.getPassword(), user.getPassword(), passwordEncoder);
         //4. 권한 정보 부여 & 인증 객체 생성 (표준 방식)
         List<GrantedAuthority> authorities =
                 Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()));
@@ -107,8 +118,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public Users updateEmail(Long userId, UserRequestDTO.UpdateEmailDTO request) {
         // 1. 사용자 확인
-        Users currentUser = userRepository.findById(userId)
-                .orElseThrow(() -> new GeneralException(ErrorStatus._USER_NOT_FOUND));
+        Users currentUser = userUtil.findByIdOrThrow(userId);
 
         // 2. 새 이메일이 현재 이메일과 같은 경우 그대로 반환
         if (currentUser.getEmail().equals(request.getEmail())) {
@@ -123,7 +133,7 @@ public class UserServiceImpl implements UserService {
             Users existingUser = existingUserOpt.get();
 
             // 3-2. 현재 Users가 임시 이메일로 생성된 카카오 사용자인지 확인
-            if (isTemporaryKakaoEmail(currentUser.getEmail())) {
+            if (emailUtil.isTemporaryKakaoEmail(currentUser.getEmail())) {
                 // 3-3. 현재 Users의 카카오 AuthAccount 찾기
                 Optional<AuthAccount> kakaoAuthAccountOpt = authAccountRepository
                         .findByUserAndProvider(currentUser, Provider.KAKAO);
@@ -168,14 +178,145 @@ public class UserServiceImpl implements UserService {
         return currentUser;
     }
 
-    /**
-     * 임시 카카오 이메일인지 확인
-     * 형식: kakao_{externalId}@kakao.fitlink
-     */
-    private boolean isTemporaryKakaoEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return false;
+    @Override
+    public UserResponseDTO.UserProfileDTO getProfile(Long userId){
+        //1. 사용자 확인
+        Users currentUser = userUtil.findByIdOrThrow(userId);
+        
+        //2. Provider 조회 (GENERAL이 기본값)
+        Provider provider = authAccountRepository.findByUserAndProvider(currentUser, Provider.GENERAL)
+                .map(AuthAccount::getProvider)
+                .orElseGet(() -> authAccountRepository.findByUser(currentUser).stream()
+                        .findFirst()
+                        .map(AuthAccount::getProvider)
+                        .orElse(Provider.GENERAL));
+        
+        //3. Agreement 조회
+        Agreement agreement = agreementRepository.findByUser(currentUser)
+                .orElse(Agreement.builder()
+                        .privacy(false)
+                        .service(false)
+                        .over14(false)
+                        .location(false)
+                        .build());
+        
+        //4. mapper로 사용자 정보 반환하기
+        UserResponseDTO.UserProfileDTO profileDTO = userMapper.toUserProfileDTO(currentUser);
+        
+        //5. 추가 정보 설정
+        profileDTO.setRegDate(currentUser.getCreatedAt());
+        profileDTO.setProvider(provider.name());
+        profileDTO.setAgreements(UserResponseDTO.AgreementsDTO.builder()
+                .privacy(agreement.getPrivacy())
+                .service(agreement.getService())
+                .over14(agreement.getOver14())
+                .location(agreement.getLocation())
+                .build());
+        
+        //6. profileUrl을 절대 URL로 변환 (기존 상대 경로도 절대 URL로 변환)
+        if (profileDTO.getProfileUrl() != null) {
+            String absoluteUrl = fileStorageService.convertToAbsoluteUrl(profileDTO.getProfileUrl());
+            profileDTO.setProfileUrl(absoluteUrl);
         }
-        return email.matches("kakao_\\d+@kakao\\.fitlink");
+        
+        return profileDTO;
     }
+    @Override
+    public UserResponseDTO.UserProfileDTO editProfile(Long userId, UserRequestDTO.@Valid EditProfileDTO request, MultipartFile img){
+        //1. 사용자 확인
+        Users currentUser = userUtil.findByIdOrThrow(userId);
+        
+        //2. 이름 업데이트 (제공된 경우)
+        Optional.ofNullable(request.getName())
+                .filter(name -> !name.isBlank())
+                .ifPresent(currentUser::setName);
+        
+        //3. 이메일 업데이트 (제공된 경우)
+        Optional.ofNullable(request.getEmail())
+                .filter(email -> !email.isBlank())
+                .ifPresent(email -> {
+                    // 이메일이 변경되는 경우에만 중복 체크
+                    if (!currentUser.getEmail().equals(email)) {
+                        userValidator.validateEmailNotDuplicate(email);
+                        currentUser.setEmail(email);
+                    }
+                });
+        
+        //4. 비밀번호 업데이트 (제공된 경우)
+        Optional.ofNullable(request.getPassword())
+                .filter(password -> !password.isBlank())
+                .ifPresent(password -> currentUser.setPassword(passwordEncoder.encode(password)));
+        
+        //5. 프로필 이미지 업로드 (제공된 경우)
+        Optional.ofNullable(img)
+                .filter(file -> !file.isEmpty())
+                .map(fileStorageService::uploadFile)
+                .ifPresent(currentUser::setProfileUrl);
+        
+        //6. Agreement 업데이트 (제공된 경우)
+        Optional.ofNullable(request.getAgreements())
+                .ifPresent(agreementsDTO -> {
+                    Agreement agreement = agreementRepository.findByUser(currentUser)
+                            .orElse(Agreement.builder()
+                                    .user(currentUser)
+                                    .privacy(false)
+                                    .service(false)
+                                    .over14(false)
+                                    .location(false)
+                                    .build());
+                    
+                    Optional.ofNullable(agreementsDTO.getPrivacy())
+                            .ifPresent(agreement::setPrivacy);
+                    Optional.ofNullable(agreementsDTO.getService())
+                            .ifPresent(agreement::setService);
+                    Optional.ofNullable(agreementsDTO.getOver14())
+                            .ifPresent(agreement::setOver14);
+                    Optional.ofNullable(agreementsDTO.getLocation())
+                            .ifPresent(agreement::setLocation);
+                    
+                    agreementRepository.save(agreement);
+                });
+        
+        //7. 저장 후 DTO로 변환하여 반환
+        Users savedUser = userRepository.save(currentUser);
+        
+        //8. getProfile과 동일한 방식으로 DTO 생성 (provider, agreements 포함)
+        UserResponseDTO.UserProfileDTO profileDTO = userMapper.toUserProfileDTO(savedUser);
+        
+        // Provider 조회
+        Provider provider = authAccountRepository.findByUserAndProvider(savedUser, Provider.GENERAL)
+                .map(AuthAccount::getProvider)
+                .orElseGet(() -> authAccountRepository.findByUser(savedUser).stream()
+                        .findFirst()
+                        .map(AuthAccount::getProvider)
+                        .orElse(Provider.GENERAL));
+        
+        // Agreement 조회
+        Agreement agreement = agreementRepository.findByUser(savedUser)
+                .orElse(Agreement.builder()
+                        .privacy(false)
+                        .service(false)
+                        .over14(false)
+                        .location(false)
+                        .build());
+        
+        // 추가 정보 설정
+        profileDTO.setRegDate(savedUser.getCreatedAt());
+        profileDTO.setProvider(provider.name());
+        profileDTO.setAgreements(UserResponseDTO.AgreementsDTO.builder()
+                .privacy(agreement.getPrivacy())
+                .service(agreement.getService())
+                .over14(agreement.getOver14())
+                .location(agreement.getLocation())
+                .build());
+        
+        // profileUrl을 절대 URL로 변환
+        if (profileDTO.getProfileUrl() != null) {
+            String absoluteUrl = fileStorageService.convertToAbsoluteUrl(profileDTO.getProfileUrl());
+            profileDTO.setProfileUrl(absoluteUrl);
+        }
+        
+        return profileDTO;
+    }
+
 }

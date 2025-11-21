@@ -23,8 +23,8 @@ public class UserController {
     @PostMapping(value = "/join", consumes = "multipart/form-data")
     public ApiResponse<UserResponseDTO.JoinResultDTO> join(
             @ModelAttribute @Valid UserRequestDTO.JoinDTO request, MultipartFile Img) {
-        
-        Users user = userService.joinUser(request,Img);
+
+        Users user = userService.joinUser(request, Img);
         return ApiResponse.onSuccess(userMapper.toJoinResultDTO(user));
     }
 
@@ -41,5 +41,22 @@ public class UserController {
             @RequestBody @Valid UserRequestDTO.UpdateEmailDTO request) {
         Users user = userService.updateEmail(userDetails.getUsers().getId(), request);
         return ApiResponse.onSuccess(userMapper.toJoinResultDTO(user));
+    }
+
+    @GetMapping(value = "/profile")
+    public ApiResponse<UserResponseDTO.UserProfileDTO> getProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UserResponseDTO.UserProfileDTO userProfileDTO = userService.getProfile(userDetails.getUserId());
+        return ApiResponse.onSuccess(userProfileDTO);
+    }
+
+    @PatchMapping(value = "/edit")
+    public ApiResponse<UserResponseDTO.UserProfileDTO> edit(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @ModelAttribute @Valid UserRequestDTO.EditProfileDTO request, MultipartFile Img
+    ){
+        UserResponseDTO.UserProfileDTO userProfileDTO = userService.editProfile(userDetails.getUserId(),request,Img);
+        return ApiResponse.onSuccess(userProfileDTO);
     }
 }

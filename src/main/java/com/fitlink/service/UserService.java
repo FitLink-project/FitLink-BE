@@ -13,4 +13,8 @@ public interface UserService {
     UserResponseDTO.LoginResultDTO loginUser(UserRequestDTO.LoginRequestDTO request);
 
     Users updateEmail(Long userId, UserRequestDTO.UpdateEmailDTO request);
+
+    UserResponseDTO.UserProfileDTO getProfile(Long userId);
+
+    UserResponseDTO.UserProfileDTO editProfile(Long userId, UserRequestDTO.@Valid EditProfileDTO request, MultipartFile img);
 }
