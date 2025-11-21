@@ -6,12 +6,16 @@ import com.fitlink.domain.Program;
 import com.fitlink.repository.FacilityRepository;
 import com.fitlink.repository.ProgramRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.InputStreamReader;
+import java.io.Reader;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class CsvDataLoader implements CommandLineRunner {
@@ -22,15 +26,22 @@ public class CsvDataLoader implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
 
-        String filePath = "src/main/resources/data/final_facilities_programs_with_geo.csv";
-
         //이미 db에 있으면 건너뛰기
         if (facilityRepository.count() > 0) {
-            System.out.println("CSV Import skipped (already loaded)");
+            log.info("CSV Import skipped (already loaded)");
             return;
         }
 
-        BufferedReader br = new BufferedReader(new FileReader(filePath));
+        // ClassPathResource를 사용하여 JAR 내부 리소스 접근
+        ClassPathResource resource = new ClassPathResource("data/final_facilities_programs_with_geo.csv");
+        
+        if (!resource.exists()) {
+            log.warn("CSV file not found: data/final_facilities_programs_with_geo.csv. Skipping data import.");
+            return;
+        }
+
+        Reader reader = new InputStreamReader(resource.getInputStream(), "UTF-8");
+        BufferedReader br = new BufferedReader(reader);
         String line;
         br.readLine();
 
