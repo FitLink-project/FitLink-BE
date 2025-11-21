@@ -3,8 +3,8 @@ package com.fitlink.config;
 import com.fitlink.domain.Facility;
 
 import com.fitlink.domain.Program;
-import com.fitlink.domain.ProgramRepository;
 import com.fitlink.repository.FacilityRepository;
+import com.fitlink.repository.ProgramRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -43,18 +43,22 @@ public class CsvDataLoader implements CommandLineRunner {
             String signgu = data[1];
             String facilityName = data[2];
             String address = data[3];
-
             // null 또는 빈 값 안전 파싱
             Double lat = safeParseDouble(data[4]);
             Double lng = safeParseDouble(data[5]);
 
-            String programName = data[6];
-            String target = data[7];
-            String time = data[8];
-            String days = data[9];
+            // 시설 홈페이지 URL (index 6 - 확정)
+            String homepageUrl = data[6];
 
-            Integer capacity = safeParseInt(data[10]);
-            Integer price = safeParseIntFromDecimal(data[11]);
+            //  프로그램 정보
+            String programName = data[7];
+            String target = data[8];
+            String time = data[9];
+            String days = data[10];
+
+            Integer capacity = safeParseInt(data[11]);
+            Integer price = safeParseIntFromDecimal(data[12]);
+
 
             // Facility 저장
             Facility facility = facilityRepository.findByName(facilityName);
@@ -65,6 +69,7 @@ public class CsvDataLoader implements CommandLineRunner {
                         .address(address)
                         .latitude(lat)
                         .longitude(lng)
+                        .homepageUrl(homepageUrl)
                         .build();
 
                 facility = facilityRepository.save(facility);
