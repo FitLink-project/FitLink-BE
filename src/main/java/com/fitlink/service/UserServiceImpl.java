@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -319,4 +320,76 @@ public class UserServiceImpl implements UserService {
         return profileDTO;
     }
 
+    @Override
+    public UserResponseDTO.UserDeletedDTO deleteUser(Long userId){
+        // 1. 사용자 찾기
+        Users currentUser = userUtil.findByIdOrThrow(userId);
+        
+        // 2. 이미 탈퇴한 사용자인지 확인
+        if (currentUser.getDeleteDate() != null || Boolean.FALSE.equals(currentUser.getIsActive())) {
+            throw new GeneralException(ErrorStatus._USER_ALREADY_DELETED);
+        }
+        
+        // 3. deleteDate에 현재 시간 설정
+        currentUser.setDeleteDate(LocalDateTime.now());
+        
+        // 4. isActive를 false로 변경
+        currentUser.setIsActive(false);
+        
+        // 5. 저장
+        Users savedUser = userRepository.save(currentUser);
+        
+        // 6. Provider 조회
+        Provider provider = authAccountRepository.findByUserAndProvider(savedUser, Provider.GENERAL)
+                .map(AuthAccount::getProvider)
+                .orElseGet(() -> authAccountRepository.findByUser(savedUser).stream()
+                        .findFirst()
+                        .map(AuthAccount::getProvider)
+                        .orElse(Provider.GENERAL));
+        
+        // 7. DTO로 변환하여 반환
+        UserResponseDTO.UserDeletedDTO deletedDTO = userMapper.toUserDeletedDTO(savedUser);
+        deletedDTO.setProvider(provider.name());
+        deletedDTO.setRegDate(savedUser.getCreatedAt());
+        
+        return deletedDTO;
+    }
+
+    @Override
+    public UserResponseDTO.UserDeletedDTO hardDeleteUser(Long userId){
+        // 1. 사용자 찾기
+        Users currentUser = userUtil.findByIdOrThrow(userId);
+        
+        // 2. Provider 조회 (삭제 전에)
+        Provider provider = authAccountRepository.findByUserAndProvider(currentUser, Provider.GENERAL)
+                .map(AuthAccount::getProvider)
+                .orElseGet(() -> authAccountRepository.findByUser(currentUser).stream()
+                        .findFirst()
+                        .map(AuthAccount::getProvider)
+                        .orElse(Provider.GENERAL));
+        
+        // 3. DTO 생성 (삭제 전에)
+        UserResponseDTO.UserDeletedDTO deletedDTO = userMapper.toUserDeletedDTO(currentUser);
+        deletedDTO.setProvider(provider.name());
+        deletedDTO.setRegDate(currentUser.getCreatedAt());
+        deletedDTO.setDeleteDate(LocalDateTime.now());
+        
+        // 4. 관련 데이터 삭제
+        // 4-1. AuthAccount 삭제
+        List<AuthAccount> authAccounts = authAccountRepository.findByUser(currentUser);
+        authAccountRepository.deleteAll(authAccounts);
+        
+        // 4-2. Agreement 삭제
+        agreementRepository.findByUser(currentUser)
+                .ifPresent(agreementRepository::delete);
+        
+        // 4-3. 프로필 이미지 삭제 (있는 경우)
+        Optional.ofNullable(currentUser.getProfileUrl())
+                .ifPresent(fileStorageService::deleteFileByUrl);
+        
+        // 5. Users 삭제
+        userRepository.delete(currentUser);
+        
+        return deletedDTO;
+    }
 }

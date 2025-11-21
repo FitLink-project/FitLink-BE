@@ -24,6 +24,7 @@ public enum ErrorStatus implements BaseErrorCode {
     _DUPLICATE_EMAIL(HttpStatus.CONFLICT, "USER4031", "중복된 이메일입니다."),
     _USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER4041", "사용자를 찾을 수 없습니다."),
     _USER_INACTIVE(HttpStatus.FORBIDDEN, "USER4032", "비활성화된 사용자입니다."),
+    _USER_ALREADY_DELETED(HttpStatus.FORBIDDEN, "USER4033", "이미 탈퇴한 사용자입니다."),
     _LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "USER4011", "이메일 또는 비밀번호가 올바르지 않습니다."),
 
     // 프로그램 관련 에러

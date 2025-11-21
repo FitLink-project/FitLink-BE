@@ -53,6 +53,19 @@ public class UserResponseDTO {
         Boolean over14;
         Boolean location;
     }
+    @Builder
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserDeletedDTO{
+        Long userId;
+        String email;
+        Boolean isActive;
+        LocalDateTime regDate;
+        String provider;
+        LocalDateTime deleteDate;
+    }
 
 }
 

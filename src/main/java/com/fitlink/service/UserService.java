@@ -17,4 +17,8 @@ public interface UserService {
     UserResponseDTO.UserProfileDTO getProfile(Long userId);
 
     UserResponseDTO.UserProfileDTO editProfile(Long userId, UserRequestDTO.@Valid EditProfileDTO request, MultipartFile img);
+
+    UserResponseDTO.UserDeletedDTO deleteUser(Long userId);
+
+    UserResponseDTO.UserDeletedDTO hardDeleteUser(Long userId);
 }
