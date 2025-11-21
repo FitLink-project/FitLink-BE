@@ -19,6 +19,11 @@
 | `name` | String | ✅ 필수 | 사용자 이름 |
 | `email` | String | ✅ 필수 | 이메일 주소 (이메일 형식, 중복 불가) |
 | `password` | String | ✅ 필수 | 비밀번호 (최소 8자, 영문+숫자 포함) |
+| `agreements` | JSON String | ✅ 필수 | 약관 동의 정보 (JSON 문자열) |
+| `agreements.privacy` | Boolean | ✅ 필수 | 개인정보 처리방침 동의 |
+| `agreements.service` | Boolean | ✅ 필수 | 서비스 이용약관 동의 |
+| `agreements.over14` | Boolean | ✅ 필수 | 만 14세 이상 확인 |
+| `agreements.location` | Boolean | ❌ 선택 | 위치 정보 이용 동의 (기본값: false) |
 | `Img` | File | ❌ 선택 | 프로필 이미지 파일 |
 
 ### 비밀번호 형식 규칙
@@ -36,7 +41,13 @@
    - `name` (Text): `홍길동`
    - `email` (Text): `test@example.com`
    - `password` (Text): `password123`
+   - `agreements` (Text): `{"privacy":true,"service":true,"over14":true,"location":false}`
    - `Img` (File, 선택): 프로필 이미지 파일 선택
+
+**중요**: `agreements`는 JSON 문자열로 입력해야 합니다. Postman에서:
+   - Key: `agreements`
+   - Value: `{"privacy":true,"service":true,"over14":true,"location":false}`
+   - Type: `Text` (기본값)
 
 #### cURL 예시
 ```bash
@@ -44,6 +55,7 @@ curl -X POST http://localhost:8080/api/user/join \
   -F "name=홍길동" \
   -F "email=test@example.com" \
   -F "password=password123" \
+  -F 'agreements={"privacy":true,"service":true,"over14":true,"location":false}' \
   -F "Img=@/path/to/profile.jpg"
 ```
 
@@ -156,7 +168,9 @@ curl -X POST http://localhost:8080/api/user/join \
    name: 홍길동
    email: test@example.com
    password: password123
+   agreements: {"privacy":true,"service":true,"over14":true,"location":false}
    ```
+   - `agreements`는 JSON 문자열로 입력 (따옴표 포함)
 7. **Send** 클릭
 
 ### 2. 프로필 이미지 포함 회원가입
@@ -167,6 +181,7 @@ curl -X POST http://localhost:8080/api/user/join \
    name: 홍길동
    email: test@example.com
    password: password123
+   agreements: {"privacy":true,"service":true,"over14":true,"location":false}
    Img: [File] (파일 선택)
    ```
    - `Img` 필드의 타입을 `Text` → `File`로 변경
