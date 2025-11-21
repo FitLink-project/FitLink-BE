@@ -383,9 +383,16 @@ public class UserServiceImpl implements UserService {
         agreementRepository.findByUser(currentUser)
                 .ifPresent(agreementRepository::delete);
         
-        // 4-3. 프로필 이미지 삭제 (있는 경우)
+        // 4-3. 프로필 이미지 삭제 (있는 경우, 실패해도 계속 진행)
         Optional.ofNullable(currentUser.getProfileUrl())
-                .ifPresent(fileStorageService::deleteFileByUrl);
+                .ifPresent(url -> {
+                    try {
+                        fileStorageService.deleteFileByUrl(url);
+                    } catch (Exception e) {
+                        // 프로필 이미지 삭제 실패해도 계속 진행 (로그만 남김)
+                        // 파일이 이미 삭제되었거나 존재하지 않을 수 있음
+                    }
+                });
         
         // 5. Users 삭제
         userRepository.delete(currentUser);
