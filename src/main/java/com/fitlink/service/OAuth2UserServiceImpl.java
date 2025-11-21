@@ -1,9 +1,11 @@
 package com.fitlink.service;
 
+import com.fitlink.domain.Agreement;
 import com.fitlink.domain.AuthAccount;
 import com.fitlink.domain.Users;
 import com.fitlink.domain.enums.Provider;
 import com.fitlink.domain.enums.Role;
+import com.fitlink.repository.AgreementRepository;
 import com.fitlink.repository.AuthAccountRepository;
 import com.fitlink.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
 
     private final UserRepository userRepository;
     private final AuthAccountRepository authAccountRepository;
+    private final AgreementRepository agreementRepository;
     private final DefaultOAuth2UserService defaultOAuth2UserService = new DefaultOAuth2UserService();
     
     @PersistenceContext
@@ -95,6 +98,18 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             if (existingUserOpt.isPresent()) {
                 // 기존 사용자가 있으면 AuthAccount만 추가
                 user = existingUserOpt.get();
+                
+                // Agreement가 없으면 기본값(true)으로 생성
+                if (agreementRepository.findByUser(user).isEmpty()) {
+                    Agreement agreement = Agreement.builder()
+                            .user(user)
+                            .privacy(true)
+                            .service(true)
+                            .over14(true)
+                            .location(true)
+                            .build();
+                    agreementRepository.save(agreement);
+                }
             } else {
                 // 완전히 새로운 사용자 생성
                 try {
@@ -108,6 +123,16 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                             .build();
                     user = userRepository.save(user);
                     entityManager.flush();
+                    
+                    // Agreement 기본값(true)으로 생성
+                    Agreement agreement = Agreement.builder()
+                            .user(user)
+                            .privacy(true)
+                            .service(true)
+                            .over14(true)
+                            .location(true)
+                            .build();
+                    agreementRepository.save(agreement);
                 } catch (Exception e) {
                     log.error("Users 저장 실패: email={}, provider={}", email, provider, e);
                     OAuth2Error oauth2Error = new OAuth2Error(
