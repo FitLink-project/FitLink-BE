@@ -36,5 +36,11 @@ public interface UserMapper {
     @Mapping(target = "provider", ignore = true)  // 서비스에서 설정
     @Mapping(target = "agreements", ignore = true)  // 서비스에서 설정
     UserResponseDTO.UserProfileDTO toUserProfileDTO(Users user);
+
+    //Users -> UserDeletedDTO
+    @Mapping(target = "userId", source = "id")
+    @Mapping(target = "regDate", ignore = true)  // 서비스에서 설정
+    @Mapping(target = "provider", ignore = true)  // 서비스에서 설정
+    UserResponseDTO.UserDeletedDTO toUserDeletedDTO(Users user);
 }
 

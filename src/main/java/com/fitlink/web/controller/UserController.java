@@ -59,4 +59,19 @@ public class UserController {
         UserResponseDTO.UserProfileDTO userProfileDTO = userService.editProfile(userDetails.getUserId(),request,Img);
         return ApiResponse.onSuccess(userProfileDTO);
     }
+    @DeleteMapping(value = "/delete")
+    public ApiResponse<UserResponseDTO.UserDeletedDTO> delete(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ){
+        UserResponseDTO.UserDeletedDTO userDeleteDTO = userService.deleteUser(userDetails.getUserId());
+        return ApiResponse.onSuccess(userDeleteDTO);
+    }
+
+    @DeleteMapping(value = "/delete/hard")
+    public ApiResponse<UserResponseDTO.UserDeletedDTO> hardDelete(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ){
+        UserResponseDTO.UserDeletedDTO userDeleteDTO = userService.hardDeleteUser(userDetails.getUserId());
+        return ApiResponse.onSuccess(userDeleteDTO);
+    }
 }

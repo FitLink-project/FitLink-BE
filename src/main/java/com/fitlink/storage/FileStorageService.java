@@ -63,11 +63,36 @@ public class FileStorageService {
         }
 
         String normalizedPrefix = ensureTrailingSlash(fileUrlPrefix);
-        if (!fileUrl.startsWith(normalizedPrefix)) {
+        String fileName;
+        
+        // 절대 URL인 경우 (http:// 또는 https://로 시작)
+        if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+            // base-url이 설정되어 있으면 base-url을 제거
+            if (StringUtils.hasText(fileBaseUrl)) {
+                String baseUrl = fileBaseUrl.endsWith("/") 
+                        ? fileBaseUrl.substring(0, fileBaseUrl.length() - 1) 
+                        : fileBaseUrl;
+                if (fileUrl.startsWith(baseUrl)) {
+                    // base-url 제거 후 상대 경로 추출
+                    String relativePath = fileUrl.substring(baseUrl.length());
+                    if (relativePath.startsWith(normalizedPrefix)) {
+                        fileName = relativePath.substring(normalizedPrefix.length());
+                    } else {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 파일 URL입니다.");
+                    }
+                } else {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 파일 URL입니다.");
+                }
+            } else {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 파일 URL입니다.");
+            }
+        } else if (fileUrl.startsWith(normalizedPrefix)) {
+            // 상대 경로인 경우
+            fileName = fileUrl.substring(normalizedPrefix.length());
+        } else {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 파일 URL입니다.");
         }
 
-        String fileName = fileUrl.substring(normalizedPrefix.length());
         deleteFile(fileName);
     }
 
