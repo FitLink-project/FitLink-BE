@@ -34,9 +34,24 @@ public class UserResponseDTO {
         Long userId;
         String email;
         String name;
-        Boolean isActive;
-        LocalDateTime deleteDate;
         String profileUrl;
+        Boolean isActive;
+        LocalDateTime regDate;
+        String provider;
+        LocalDateTime deleteDate;
+        AgreementsDTO agreements;
+    }
+
+    @Builder
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AgreementsDTO {
+        Boolean privacy;
+        Boolean service;
+        Boolean over14;
+        Boolean location;
     }
 
 }

@@ -32,6 +32,9 @@ public interface UserMapper {
 
     //Users -> UserProfileDTO
     @Mapping(target = "userId", source = "id")
+    @Mapping(target = "regDate", source = "createdAt")
+    @Mapping(target = "provider", ignore = true)  // 서비스에서 설정
+    @Mapping(target = "agreements", ignore = true)  // 서비스에서 설정
     UserResponseDTO.UserProfileDTO toUserProfileDTO(Users user);
 }
 
