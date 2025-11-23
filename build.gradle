@@ -78,6 +78,9 @@ dependencies {
 	// OpenFeignClient
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
+	// Weka (Machine Learning)
+	implementation 'nz.ac.waikato.cms.weka:weka-stable:3.8.6'
+
 }
 
 clean {
