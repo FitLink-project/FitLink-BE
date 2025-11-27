@@ -21,6 +21,11 @@ public class FacilityController {
 
     private final FacilityService facilityService;
 
+    @GetMapping
+    public ApiResponse<?> search(@RequestParam String keyword) {
+        return ApiResponse.onSuccess(facilityService.search(keyword));
+    }// 통합 검색
+
     @PostMapping("/nearby")
     public ApiResponse<?> getNearby(@RequestBody NearByRequestDTO req) {
         List<NearbyFacilityResponseDTO> response = facilityService.getNearbyFacilities(req);

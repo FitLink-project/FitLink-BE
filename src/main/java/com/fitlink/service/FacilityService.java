@@ -14,4 +14,6 @@ public interface FacilityService {
     FacilityDetailResponseDTO getFacilityDetail(Long facilityId); // 상세 조회
 
     FacilityProgramsResponseDTO getFacilityPrograms(Long facilityId);
+
+    Object search(String keyword);
 }
