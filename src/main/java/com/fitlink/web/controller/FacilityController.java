@@ -1,6 +1,7 @@
 package com.fitlink.web.controller;
 
 import com.fitlink.apiPayload.ApiResponse;
+import com.fitlink.service.FacilityRouteService;
 import com.fitlink.service.FacilityService;
 import com.fitlink.web.dto.FacilityDetailResponseDTO;
 import com.fitlink.web.dto.FacilityProgramsResponseDTO;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class FacilityController {
 
     private final FacilityService facilityService;
+    private final FacilityRouteService facilityRouteService;
 
     @GetMapping
     public ApiResponse<?> search(@RequestParam String keyword) {
@@ -47,6 +49,19 @@ public class FacilityController {
 
         return ApiResponse.onSuccess(dto);
     }// 공공체육시설 프로그램 조회
+
+    @GetMapping("/route")
+    public ApiResponse<?> getRoute(
+            @RequestParam float originLat, //출발지 위도
+            @RequestParam float originLng, //출발지 경도
+            @RequestParam float destLat, //목적지 위도
+            @RequestParam float destLng, //목적지 경도
+            @RequestParam String type
+    ) {
+        return ApiResponse.onSuccess(
+                facilityRouteService.getRoute(originLat, originLng, destLat, destLng, type)
+        );
+    }
 
 
 }
