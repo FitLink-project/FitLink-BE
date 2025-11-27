@@ -1,8 +1,11 @@
 package com.fitlink.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
+import org.springframework.web.filter.CharacterEncodingFilter;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -47,5 +50,17 @@ public class WebConfig implements WebMvcConfigurer {
         normalized = normalized.replace("\\", "/");
         return "file:" + normalized;
     }
+
+    @Bean
+    public FilterRegistrationBean<CharacterEncodingFilter> encodingFilter() {
+        CharacterEncodingFilter filter = new CharacterEncodingFilter();
+        filter.setEncoding("UTF-8");
+        filter.setForceEncoding(true);
+
+        FilterRegistrationBean<CharacterEncodingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.addUrlPatterns("/*");
+        return registration;
+    }//UTF-8 인코딩 문제 해결
+
 }
 
