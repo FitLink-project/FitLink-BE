@@ -114,13 +114,13 @@ public class TmapRouteService {
         ResponseEntity<String> rawResponse =
                 restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
-        System.out.println("🔥 [Tmap Raw Response] = " + rawResponse.getBody());
+        System.out.println("[Tmap Raw Response] = " + rawResponse.getBody());
 
         try {
             return new ObjectMapper().readValue(rawResponse.getBody(), TmapRouteDTO.class);
 
         } catch (Exception e) {
-            System.err.println("❌ DTO 변환 오류: " + e.getMessage());
+            System.err.println("DTO 변환 오류: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
