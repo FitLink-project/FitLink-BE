@@ -27,8 +27,11 @@ public class FitnessKookminRequestDTO {
     @Schema(description = "악력(kg) - 근력(Strength) 계산에 사용", example = "65.5")
     private Float gripStrength;
 
-    @Schema(description = "윗몸일으키기(회) - 근지구력(Muscular Endurance) 계산에 사용", example = "50")
+    @Schema(description = "윗몸말아올리기(회) - 근지구력(Muscular Endurance) 계산에 사용", example = "50")
     private Integer sitUp;
+
+    @Schema(description = "교차윗몸일으키기(회) - 근지구력(Muscular Endurance) 계산에 사용", example = "50")
+    private Integer crossSitUp;
 
     @Schema(description = "앉아 윗몸 앞으로 굽히기(cm) - 유연성(Flexibility) 계산에 사용", example = "18.2")
     private Float sitAndReach;

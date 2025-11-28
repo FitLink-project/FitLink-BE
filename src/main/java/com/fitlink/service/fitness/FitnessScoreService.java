@@ -35,7 +35,7 @@ public class FitnessScoreService {
         FitnessStandardSet standardSet = fitnessStandards.getStandard(sex, age);
 
         res.setStrength(calculator.scoreHigherIsBetter(dto.getGripStrength(), standardSet.getGripStrength()));
-        res.setMuscular(calculator.scoreHigherIsBetter(dto.getSitUp(), standardSet.getSitUp()));
+        res.setMuscular(calculator.scoreHigherIsBetter(dto.getSitUp() == null ? dto.getCrossSitUp() : dto.getSitUp(), standardSet.getSitUp()));
         res.setFlexibility(calculator.scoreHigherIsBetter(dto.getSitAndReach(), standardSet.getSitAndReach()));
         res.setCardiopulmonary(calculator.scoreHigherIsBetter(dto.getShuttleRun(), standardSet.getShuttleRun()));
         res.setAgility(calculator.scoreLowerIsBetter(dto.getSprint(), standardSet.getSprint()));
