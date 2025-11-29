@@ -30,6 +30,9 @@ public class FitnessResponseDTO {
     @Schema(description = "운동 종목별 대한민국 평균(기준) 데이터 객체")
     private FitnessAverage average;
 
+    @Schema(description = "사용자 신체 정보")
+    private UserInfo userInfo;
+
     /**
      * 평균값 데이터를 담는 내부 클래스
      */
@@ -57,5 +60,27 @@ public class FitnessResponseDTO {
 
         @Schema(description = "순발력(Quickness) 평균 - 제자리 멀리뛰기 측정값 기준")
         private Float standingLongJump;
+    }
+
+    /**
+     * 사용자의 정보를 담은 클래스
+     */
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Getter
+    @Setter
+    @Builder
+    public static class UserInfo {
+        @Schema(description = "성별(Sex) - 남성: 'M', 여성: 'F'로 구분", example = "M")
+        private String sex;
+
+        @Schema(description = "생년월일(Date of Birth) - YYYYMMDD 형식", example = "19900101")
+        private String birthDate;
+
+        @Schema(description = "신장(Height) - 단위: cm", example = "175.0")
+        private Float height;
+
+        @Schema(description = "체중(Weight) - 단위: kg", example = "70.5")
+        private Float weight;
     }
 }
