@@ -124,12 +124,18 @@ public class FitnessController {
         // 새로운 점수 계산
         response = fitnessScoreService.calculateKookmin(request);
 
+        // 점수를 계산하고 나온 평균값
+        FitnessResponseDTO.FitnessAverage average = response.getAverage();
+
         // 기존 엔티티에 업데이트 적용
         fitnessResultMapper.updateEntityFromResponse(response, existing);
         fitnessResultRepository.save(existing);
 
         // 업데이트 된 전체 결과 DTO
         response = fitnessResultMapper.toResponseDTO(existing);
+
+        // 결과 DTO에 평균값 추가
+        response.setAverage(average);
 
         return ApiResponse.onSuccess(response);
     }
@@ -159,10 +165,14 @@ public class FitnessController {
 
         response = fitnessScoreService.calculateGeneral(request);
 
+        FitnessResponseDTO.FitnessAverage average = response.getAverage();
+
         fitnessResultMapper.updateEntityFromResponse(response, existing);
         fitnessResultRepository.save(existing);
 
         response = fitnessResultMapper.toResponseDTO(existing);
+
+        response.setAverage(average);
 
         return ApiResponse.onSuccess(response);
     }
