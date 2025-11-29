@@ -5,12 +5,16 @@ import com.fitlink.config.security.jwt.CustomUserDetails;
 import com.fitlink.config.security.jwt.JwtTokenProvider;
 import com.fitlink.domain.FitnessResult;
 import com.fitlink.domain.Users;
+import com.fitlink.domain.UsersInfo;
+import com.fitlink.domain.enums.Sex;
 import com.fitlink.repository.FitnessResultRepository;
+import com.fitlink.repository.UsersInfoRepository;
 import com.fitlink.service.fitness.FitnessScoreService;
 import com.fitlink.web.dto.FitnessGeneralRequestDTO;
 import com.fitlink.web.dto.FitnessKookminRequestDTO;
 import com.fitlink.web.dto.FitnessResponseDTO;
 import com.fitlink.web.mapper.FitnessResultMapper;
+import com.fitlink.web.mapper.UserInfoMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -24,19 +28,48 @@ public class FitnessController {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final FitnessResultMapper fitnessResultMapper;
+    private final UserInfoMapper userInfoMapper;
     private final FitnessScoreService fitnessScoreService;
     private final FitnessResultRepository fitnessResultRepository;
+    private final UsersInfoRepository usersInfoRepository;
 
     public FitnessController(
             JwtTokenProvider jwtTokenProvider,
-            FitnessResultMapper fitnessResultMapper,
+            FitnessResultMapper fitnessResultMapper, UserInfoMapper userInfoMapper,
             FitnessScoreService fitnessScoreService,
-            FitnessResultRepository fitnessResultRepository
+            FitnessResultRepository fitnessResultRepository, UsersInfoRepository usersInfoRepository
     ) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.fitnessResultMapper = fitnessResultMapper;
+        this.userInfoMapper = userInfoMapper;
         this.fitnessScoreService = fitnessScoreService;
         this.fitnessResultRepository = fitnessResultRepository;
+        this.usersInfoRepository = usersInfoRepository;
+    }
+
+    /**
+     * users_info에 사용자의 성별, 키, 몸무게를 저장함.
+     *
+     * @param user   해당 사용자 엔티티
+     * @param sexStr "M" 또는 "F"
+     * @param height 키
+     * @param weight 몸무게
+     * @return
+     */
+    private FitnessResponseDTO.UserInfo saveOrUpdateUsersInfo(Users user, String sexStr, String birthDate, Float height, Float weight) {
+        UsersInfo userInfo = usersInfoRepository.findById(user.getId())
+                .orElse(UsersInfo.builder()
+                        .users(user)
+                        .build());
+
+        // 값 업데이트
+        userInfo.setSex(Sex.valueOf(sexStr)); // Enum 변환
+        userInfo.setBirthDate(birthDate);
+        userInfo.setHeight(height);
+        userInfo.setWeight(weight);
+
+        userInfo = usersInfoRepository.save(userInfo);
+        return userInfoMapper.toDTO(userInfo);
     }
 
     /**
@@ -72,6 +105,10 @@ public class FitnessController {
         FitnessResult entity = fitnessResultMapper.toEntity(response, user);
         fitnessResultRepository.save(entity);
 
+        // users_info 테이블에 성별, 생년월일, 키, 몸무게 저장 후 응답 DTO에 추가
+        FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
+        response.setUserInfo(userInfo);
+
         return ApiResponse.onSuccess(response);
     }
 
@@ -92,6 +129,9 @@ public class FitnessController {
 
         FitnessResult entity = fitnessResultMapper.toEntity(response, user);
         fitnessResultRepository.save(entity);
+
+        FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
+        response.setUserInfo(userInfo);
 
         return ApiResponse.onSuccess(response);
     }
@@ -134,6 +174,9 @@ public class FitnessController {
         // 업데이트 된 전체 결과 DTO
         response = fitnessResultMapper.toResponseDTO(existing);
 
+        FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
+        response.setUserInfo(userInfo);
+
         // 결과 DTO에 평균값 추가
         response.setAverage(average);
 
@@ -172,6 +215,9 @@ public class FitnessController {
 
         response = fitnessResultMapper.toResponseDTO(existing);
 
+        FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
+        response.setUserInfo(userInfo);
+
         response.setAverage(average);
 
         return ApiResponse.onSuccess(response);
@@ -199,6 +245,10 @@ public class FitnessController {
                 .get();
 
         response = fitnessResultMapper.toResponseDTO(entity);
+
+        // 사용자 정보 가져오고 응답 DTO에 추가
+        UsersInfo userInfo = usersInfoRepository.findById(user.getId()).orElse(null);
+        response.setUserInfo(userInfoMapper.toDTO(userInfo));
 
         return ApiResponse.onSuccess(response);
     }
