@@ -40,6 +40,10 @@ public class UserResponseDTO {
         String provider;
         LocalDateTime deleteDate;
         AgreementsDTO agreements;
+        Float height;
+        Float weight;
+        String birthDate; // YYYYMMDD
+        String sex;       // "M" / "F"
     }
 
     @Builder
