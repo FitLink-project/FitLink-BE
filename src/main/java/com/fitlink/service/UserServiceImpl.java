@@ -10,6 +10,7 @@ import com.fitlink.domain.enums.Provider;
 import com.fitlink.repository.AgreementRepository;
 import com.fitlink.repository.AuthAccountRepository;
 import com.fitlink.repository.UserRepository;
+import com.fitlink.repository.UsersInfoRepository;
 import com.fitlink.storage.FileStorageService;
 import com.fitlink.util.EmailUtil;
 import com.fitlink.util.UserUtil;
@@ -44,6 +45,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UsersInfoRepository usersInfoRepository;
     private final UserUtil userUtil;
     private final EmailUtil emailUtil;
     private final UserValidator userValidator;
@@ -179,20 +181,21 @@ public class UserServiceImpl implements UserService {
         return currentUser;
     }
 
+
     @Override
     public UserResponseDTO.UserProfileDTO getProfile(Long userId){
-        //1. 사용자 확인
+        // 1. 사용자 확인
         Users currentUser = userUtil.findByIdOrThrow(userId);
-        
-        //2. Provider 조회 (GENERAL이 기본값)
+
+        // 2. Provider 조회 (GENERAL이 기본값)
         Provider provider = authAccountRepository.findByUserAndProvider(currentUser, Provider.GENERAL)
                 .map(AuthAccount::getProvider)
                 .orElseGet(() -> authAccountRepository.findByUser(currentUser).stream()
                         .findFirst()
                         .map(AuthAccount::getProvider)
                         .orElse(Provider.GENERAL));
-        
-        //3. Agreement 조회
+
+        // 3. Agreement 조회
         Agreement agreement = agreementRepository.findByUser(currentUser)
                 .orElse(Agreement.builder()
                         .privacy(false)
@@ -200,11 +203,11 @@ public class UserServiceImpl implements UserService {
                         .over14(false)
                         .location(false)
                         .build());
-        
-        //4. mapper로 사용자 정보 반환하기
+
+        // 4. 기본 사용자 정보 매핑
         UserResponseDTO.UserProfileDTO profileDTO = userMapper.toUserProfileDTO(currentUser);
-        
-        //5. 추가 정보 설정
+
+        // 5. 추가 정보 설정 (가입일, provider, 약관)
         profileDTO.setRegDate(currentUser.getCreatedAt());
         profileDTO.setProvider(provider.name());
         profileDTO.setAgreements(UserResponseDTO.AgreementsDTO.builder()
@@ -213,13 +216,23 @@ public class UserServiceImpl implements UserService {
                 .over14(agreement.getOver14())
                 .location(agreement.getLocation())
                 .build());
-        
-        //6. profileUrl을 절대 URL로 변환 (기존 상대 경로도 절대 URL로 변환)
+
+        // 6. UsersInfo 조회해서 height/weight/birthDate/sex 세팅
+        usersInfoRepository.findByUsers(currentUser).ifPresent(usersInfo -> {
+            profileDTO.setHeight(usersInfo.getHeight());
+            profileDTO.setWeight(usersInfo.getWeight());
+            profileDTO.setBirthDate(usersInfo.getBirthDate());
+            if (usersInfo.getSex() != null) {
+                profileDTO.setSex(usersInfo.getSex().name()); // "M" 또는 "F"
+            }
+        });
+
+        // 7. profileUrl을 절대 URL로 변환
         if (profileDTO.getProfileUrl() != null) {
             String absoluteUrl = fileStorageService.convertToAbsoluteUrl(profileDTO.getProfileUrl());
             profileDTO.setProfileUrl(absoluteUrl);
         }
-        
+
         return profileDTO;
     }
     @Override

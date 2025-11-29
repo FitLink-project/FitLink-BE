@@ -182,7 +182,7 @@ public class AIPrescriptionServiceImpl implements AIPrescriptionService {
             List<String> prepExercises = predictExerciseTopN(prepModel, prepHeader, request, "Prep", 3);
             
             // 본운동 예측 - Top 3 (기타 제외)
-            List<String> mainExercises = predictExerciseTopN(mainModel, mainHeader, request, "Main", 3);
+            List<String> mainExercises = predictExerciseTopN(mainModel, mainHeader, request, "Main", 5);
             
             // 마무리운동 예측 - Top 3 (기타 제외)
             List<String> coolDownExercises = predictExerciseTopN(coolDownModel, coolDownHeader, request, "CoolDown", 3);
