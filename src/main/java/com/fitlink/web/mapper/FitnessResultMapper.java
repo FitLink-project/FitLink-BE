@@ -18,6 +18,7 @@ public interface FitnessResultMapper {
     @Mapping(target = "cardiopulmonary", source = "cardiopulmonary")
     @Mapping(target = "agility", source = "agility")
     @Mapping(target = "quickness", source = "quickness")
+    @Mapping(target = "average", ignore = true)
     FitnessResponseDTO toResponseDTO(FitnessResult result);
 
     // DTO -> Entity
