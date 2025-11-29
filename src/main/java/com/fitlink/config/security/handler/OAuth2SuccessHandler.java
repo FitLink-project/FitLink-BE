@@ -42,6 +42,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
             String email = oAuth2User.getName();
             Boolean needsEmailUpdate = oAuth2User.getAttribute("needsEmailUpdate");
+            Boolean needsTermsAgreement = oAuth2User.getAttribute("needsTermsAgreement");
             
             Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
             org.springframework.security.authentication.UsernamePasswordAuthenticationToken authToken =
@@ -56,6 +57,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             
             if (Boolean.TRUE.equals(needsEmailUpdate)) {
                 uriBuilder.queryParam("needsEmailUpdate", true);
+            }
+            
+            if (Boolean.TRUE.equals(needsTermsAgreement)) {
+                uriBuilder.queryParam("needsTermsAgreement", true);
             }
             
             String targetUrl = uriBuilder.build()

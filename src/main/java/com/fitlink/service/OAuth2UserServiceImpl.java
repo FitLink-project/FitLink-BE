@@ -73,6 +73,7 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
         
         Users user;
         AuthAccount authAccount;
+        boolean isNewUser = false; // 완전히 새로운 사용자인지 여부
         
         if (authAccountOpt.isPresent()) {
             // 기존 소셜 로그인 사용자
@@ -112,6 +113,7 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                 }
             } else {
                 // 완전히 새로운 사용자 생성
+                isNewUser = true;
                 try {
                     user = Users.builder()
                             .email(email)
@@ -124,15 +126,8 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
                     user = userRepository.save(user);
                     entityManager.flush();
                     
-                    // Agreement 기본값(true)으로 생성
-                    Agreement agreement = Agreement.builder()
-                            .user(user)
-                            .privacy(true)
-                            .service(true)
-                            .over14(true)
-                            .location(true)
-                            .build();
-                    agreementRepository.save(agreement);
+                    // 신규 사용자는 약관 동의 페이지를 거쳐야 하므로 Agreement는 생성하지 않음
+                    // 약관 동의 후에 Agreement가 생성됨
                 } catch (Exception e) {
                     log.error("Users 저장 실패: email={}, provider={}", email, provider, e);
                     OAuth2Error oauth2Error = new OAuth2Error(
@@ -165,11 +160,18 @@ public class OAuth2UserServiceImpl implements OAuth2UserService<OAuth2UserReques
             }
         }
         
+        // 신규 사용자인지 확인 (약관 동의 필요 여부)
+        // 완전히 새로운 사용자이고 Agreement가 없으면 약관 동의 필요
+        boolean needsTermsAgreement = isNewUser && agreementRepository.findByUser(user).isEmpty();
+        
         // OAuth2User 반환 (JWT 토큰 생성에 사용됨)
         Map<String, Object> attributesWithFlag = new java.util.HashMap<>(oAuth2User.getAttributes());
         if (needsEmailUpdate) {
             attributesWithFlag.put("needsEmailUpdate", true);
             attributesWithFlag.put("temporaryEmail", email);
+        }
+        if (needsTermsAgreement) {
+            attributesWithFlag.put("needsTermsAgreement", true);
         }
         
         return new CustomOAuth2User(
