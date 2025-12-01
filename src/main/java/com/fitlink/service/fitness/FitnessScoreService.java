@@ -2,7 +2,7 @@ package com.fitlink.service.fitness;
 
 import com.fitlink.service.fitness.standards.FitnessStandardSet;
 import com.fitlink.service.fitness.standards.FitnessStandards;
-import com.fitlink.service.fitness.standards.Sex;
+import com.fitlink.domain.enums.Sex;
 import com.fitlink.web.dto.FitnessKookminRequestDTO;
 import com.fitlink.web.dto.FitnessGeneralRequestDTO;
 import com.fitlink.web.dto.FitnessResponseDTO;
@@ -99,7 +99,7 @@ public class FitnessScoreService {
     * @param standardSet 가져올 평균 세트
     * @return averageDto 가져온 평균의 FitnessResponseDTO.FitnessAverage
     * */
-    public static FitnessResponseDTO.FitnessAverage getAverage(FitnessStandardSet standardSet) {
+    public FitnessResponseDTO.FitnessAverage getAverage(FitnessStandardSet standardSet) {
         float gripStrength = standardSet.getGripStrength().getGrade2();
         float sitUp = standardSet.getSitUp().getGrade2();
         float sitAndReach = standardSet.getSitAndReach().getGrade2();
@@ -107,7 +107,9 @@ public class FitnessScoreService {
         float sprint = standardSet.getSprint().getGrade2();
         float standingLongJump = standardSet.getStandingLongJump().getGrade2();
 
-        FitnessResponseDTO.FitnessAverage averageDto = FitnessResponseDTO.FitnessAverage.builder()
+        // 예: .getAverage() 혹은 해당 값
+
+        return FitnessResponseDTO.FitnessAverage.builder()
                 .gripStrength(gripStrength) // 예: .getAverage() 혹은 해당 값
                 .sitUp(sitUp)
                 .sitAndReach(sitAndReach)
@@ -115,8 +117,6 @@ public class FitnessScoreService {
                 .sprint(sprint)
                 .standingLongJump(standingLongJump)
                 .build();
-
-        return averageDto;
     }
 }
 

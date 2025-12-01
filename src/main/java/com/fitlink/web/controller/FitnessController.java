@@ -10,6 +10,8 @@ import com.fitlink.repository.TestGeneralRepository;
 import com.fitlink.repository.TestKookminRepository;
 import com.fitlink.repository.UsersInfoRepository;
 import com.fitlink.service.fitness.FitnessScoreService;
+import com.fitlink.service.fitness.standards.FitnessStandardSet;
+import com.fitlink.service.fitness.standards.FitnessStandards;
 import com.fitlink.web.dto.FitnessGeneralRequestDTO;
 import com.fitlink.web.dto.FitnessKookminRequestDTO;
 import com.fitlink.web.dto.FitnessResponseDTO;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/fitness")
@@ -35,12 +38,13 @@ public class FitnessController {
     private final UsersInfoRepository usersInfoRepository;
     private final TestKookminRepository testKookminRepository;
     private final TestGeneralRepository testGeneralRepository;
+    private final FitnessStandards fitnessStandards;
 
     public FitnessController(
             JwtTokenProvider jwtTokenProvider,
             FitnessResultMapper fitnessResultMapper, UserInfoMapper userInfoMapper,
             FitnessScoreService fitnessScoreService,
-            FitnessResultRepository fitnessResultRepository, UsersInfoRepository usersInfoRepository, TestKookminRepository testKookminRepository, TestGeneralRepository testGeneralRepository
+            FitnessResultRepository fitnessResultRepository, UsersInfoRepository usersInfoRepository, TestKookminRepository testKookminRepository, TestGeneralRepository testGeneralRepository, FitnessStandards fitnessStandards
     ) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.fitnessResultMapper = fitnessResultMapper;
@@ -50,6 +54,7 @@ public class FitnessController {
         this.usersInfoRepository = usersInfoRepository;
         this.testKookminRepository = testKookminRepository;
         this.testGeneralRepository = testGeneralRepository;
+        this.fitnessStandards = fitnessStandards;
     }
 
     /**
@@ -335,6 +340,11 @@ public class FitnessController {
         // 사용자 정보 가져오고 응답 DTO에 추가
         UsersInfo userInfo = usersInfoRepository.findById(user.getId()).orElse(null);
         response.setUserInfo(userInfoMapper.toDTO(userInfo));
+
+        // 평균값 추가
+        int age = FitnessScoreService.calculateAge(userInfo.getBirthDate());
+        FitnessStandardSet st = fitnessStandards.getStandard(userInfo.getSex(), age);
+        response.setAverage(fitnessScoreService.getAverage(st));
 
         return ApiResponse.onSuccess(response);
     }

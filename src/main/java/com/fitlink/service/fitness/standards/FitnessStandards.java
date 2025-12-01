@@ -1,5 +1,6 @@
 package com.fitlink.service.fitness.standards;
 
+import com.fitlink.domain.enums.Sex;
 import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.Map;
