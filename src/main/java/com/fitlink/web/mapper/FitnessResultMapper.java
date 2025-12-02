@@ -19,8 +19,9 @@ public interface FitnessResultMapper {
     @Mapping(target = "agility", source = "agility")
     @Mapping(target = "quickness", source = "quickness")
     @Mapping(target = "average", ignore = true)
-    @Mapping(target = "kookmin_result_id", ignore = true)
-    @Mapping(target = "general_result_id", ignore = true)
+    @Mapping(target = "userInfo", ignore = true)     // Service에서 별도로 set하거나, user 매퍼 필요
+    @Mapping(target = "testKookmin", ignore = true)  // Service에서 별도로 set
+    @Mapping(target = "testGeneral", ignore = true)  // Service에서 별도로 set
     FitnessResponseDTO toResponseDTO(FitnessResult result);
 
     // DTO -> Entity
@@ -32,8 +33,8 @@ public interface FitnessResultMapper {
     @Mapping(target = "cardiopulmonary", source = "dto.cardiopulmonary")
     @Mapping(target = "agility", source = "dto.agility")
     @Mapping(target = "quickness", source = "dto.quickness")
-    @Mapping(target = "kookmin_result_id", ignore = true)
-    @Mapping(target = "general_result_id", ignore = true)
+    @Mapping(target = "kookminResultId", ignore = true)
+    @Mapping(target = "generalResultId", ignore = true)
     FitnessResult toEntity(FitnessResponseDTO dto, Users user);
 
     // UPDATE: DTO -> Entity
@@ -45,7 +46,7 @@ public interface FitnessResultMapper {
     @Mapping(target = "cardiopulmonary", source = "dto.cardiopulmonary")
     @Mapping(target = "agility", source = "dto.agility")
     @Mapping(target = "quickness", source = "dto.quickness")
-    @Mapping(target = "kookmin_result_id", ignore = true)
-    @Mapping(target = "general_result_id", ignore = true)
+    @Mapping(target = "kookminResultId", ignore = true)
+    @Mapping(target = "generalResultId", ignore = true)
     void updateEntityFromResponse(FitnessResponseDTO dto, @MappingTarget FitnessResult entity);
 }
