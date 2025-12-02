@@ -342,7 +342,7 @@ public class FitnessController {
         response.setUserInfo(userInfoMapper.toDTO(userInfo));
 
         // 평균값 추가
-        int age = FitnessScoreService.calculateAge(userInfo.getBirthDate());
+        int age = FitnessScoreService.calculateAge(Objects.requireNonNull(userInfo).getBirthDate());
         FitnessStandardSet st = fitnessStandards.getStandard(userInfo.getSex(), age);
         response.setAverage(fitnessScoreService.getAverage(st));
 
