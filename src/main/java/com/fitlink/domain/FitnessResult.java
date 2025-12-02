@@ -27,6 +27,14 @@ public class FitnessResult extends BaseEntity {
     @JoinColumn(name = "users_id", nullable = false)
     private Users user;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="kookmin_result_id")
+    private TestKookmin kookminResultId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="general_result_id")
+    private TestGeneral generalResultId;
+
     @Column(name = "strength")
     private Float strength;
 

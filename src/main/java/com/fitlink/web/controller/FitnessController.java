@@ -15,6 +15,7 @@ import com.fitlink.service.fitness.standards.FitnessStandards;
 import com.fitlink.web.dto.FitnessGeneralRequestDTO;
 import com.fitlink.web.dto.FitnessKookminRequestDTO;
 import com.fitlink.web.dto.FitnessResponseDTO;
+import com.fitlink.web.mapper.FitnessMapper;
 import com.fitlink.web.mapper.FitnessResultMapper;
 import com.fitlink.web.mapper.UserInfoMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/fitness")
@@ -39,12 +41,13 @@ public class FitnessController {
     private final TestKookminRepository testKookminRepository;
     private final TestGeneralRepository testGeneralRepository;
     private final FitnessStandards fitnessStandards;
+    private final FitnessMapper fitnessMapper;
 
     public FitnessController(
             JwtTokenProvider jwtTokenProvider,
             FitnessResultMapper fitnessResultMapper, UserInfoMapper userInfoMapper,
             FitnessScoreService fitnessScoreService,
-            FitnessResultRepository fitnessResultRepository, UsersInfoRepository usersInfoRepository, TestKookminRepository testKookminRepository, TestGeneralRepository testGeneralRepository, FitnessStandards fitnessStandards
+            FitnessResultRepository fitnessResultRepository, UsersInfoRepository usersInfoRepository, TestKookminRepository testKookminRepository, TestGeneralRepository testGeneralRepository, FitnessStandards fitnessStandards, FitnessMapper fitnessMapper
     ) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.fitnessResultMapper = fitnessResultMapper;
@@ -55,6 +58,7 @@ public class FitnessController {
         this.testKookminRepository = testKookminRepository;
         this.testGeneralRepository = testGeneralRepository;
         this.fitnessStandards = fitnessStandards;
+        this.fitnessMapper = fitnessMapper;
     }
 
     /**
@@ -64,7 +68,7 @@ public class FitnessController {
      * @param sexStr "M" 또는 "F"
      * @param height 키
      * @param weight 몸무게
-     * @return
+     * @return UserInfo 객체
      */
     private FitnessResponseDTO.UserInfo saveOrUpdateUsersInfo(Users user, String sexStr, String birthDate, Float height, Float weight) {
         UsersInfo userInfo = usersInfoRepository.findById(user.getId())
@@ -88,7 +92,7 @@ public class FitnessController {
      * @param user    측정 결과 사용자 엔티티
      * @param request 악력, 윗몸일으키기 등 측정 데이터가 포함된 요청 DTO
      */
-    private void saveOrUpdateTestKookmin(Users user, FitnessKookminRequestDTO request) {
+    private TestKookmin saveOrUpdateTestKookmin(Users user, FitnessKookminRequestDTO request) {
 
         // 유저의 가장 최신 기록 1개만 조회
         TestKookmin testKookmin = testKookminRepository.findTopByUserOrderByCreatedAtDesc(user)
@@ -116,7 +120,7 @@ public class FitnessController {
             testKookmin.setStandingLongJump(BigDecimal.valueOf(request.getStandingLongJump()));
         }
 
-        testKookminRepository.save(testKookmin);
+        return testKookminRepository.save(testKookmin);
     }
 
     /**
@@ -125,7 +129,7 @@ public class FitnessController {
      * @param user    측정 결과를 사용자 엔티티
      * @param request 슬라이더 점수, YMCA 스텝 테스트 등 측정 데이터가 포함된 요청 DTO
      */
-    private void saveOrUpdateTestGeneral(Users user, FitnessGeneralRequestDTO request) {
+    private TestGeneral saveOrUpdateTestGeneral(Users user, FitnessGeneralRequestDTO request) {
 
         // 유저의 가장 최신 기록 1개만 조회
         TestGeneral testGeneral = testGeneralRepository.findTopByUserOrderByCreatedAtDesc(user)
@@ -152,7 +156,7 @@ public class FitnessController {
             testGeneral.setSliderPower(request.getSliderPower());
         }
         
-        testGeneralRepository.save(testGeneral);
+        return testGeneralRepository.save(testGeneral);
     }
 
     /**
@@ -181,18 +185,20 @@ public class FitnessController {
 
         Users user = getUserFromRequest(httpServletRequest);
 
+        // 사용자의 운동 항목별 수치 저장
+        TestKookmin saved = saveOrUpdateTestKookmin(user, request);
+
         // 점수 계산
         FitnessResponseDTO response = fitnessScoreService.calculateKookmin(request);
 
         // 엔티티 변환 후 저장
         FitnessResult entity = fitnessResultMapper.toEntity(response, user);
+        entity.setKookminResultId(saved); // 국민체력100 측정 결과와 매핑
         fitnessResultRepository.save(entity);
 
         // users_info 테이블에 성별, 생년월일, 키, 몸무게 저장 후 응답 DTO에 추가
         FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
         response.setUserInfo(userInfo);
-
-        saveOrUpdateTestKookmin(user, request);
 
         return ApiResponse.onSuccess(response);
     }
@@ -210,15 +216,16 @@ public class FitnessController {
 
         Users user = getUserFromRequest(httpServletRequest);
 
+        TestGeneral saved = saveOrUpdateTestGeneral(user, request);
+
         FitnessResponseDTO response = fitnessScoreService.calculateGeneral(request);
 
         FitnessResult entity = fitnessResultMapper.toEntity(response, user);
+        entity.setGeneralResultId(saved); // 간단 체력 측정 결과와 매핑
         fitnessResultRepository.save(entity);
 
         FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
         response.setUserInfo(userInfo);
-
-        saveOrUpdateTestGeneral(user,request);
 
         return ApiResponse.onSuccess(response);
     }
@@ -243,6 +250,9 @@ public class FitnessController {
             return ApiResponse.onFailure("NOT_FOUND", "저장된 측정 결과가 없습니다.", response);
         }
 
+        // 측정 결과 수치 저장
+        TestKookmin saved = saveOrUpdateTestKookmin(user, request);
+
         // 최신 레코드 선택
         FitnessResult existing = existingList.stream()
                 .max(Comparator.comparing(FitnessResult::getCreatedAt))
@@ -256,12 +266,11 @@ public class FitnessController {
 
         // 기존 엔티티에 업데이트 적용
         fitnessResultMapper.updateEntityFromResponse(response, existing);
+        existing.setKookminResultId(saved);
         fitnessResultRepository.save(existing);
 
         // 업데이트 된 전체 결과 DTO
         response = fitnessResultMapper.toResponseDTO(existing);
-
-        saveOrUpdateTestKookmin(user, request);
 
         FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
         response.setUserInfo(userInfo);
@@ -291,6 +300,8 @@ public class FitnessController {
             return ApiResponse.onFailure("NOT_FOUND", "저장된 측정 결과가 없습니다.", response);
         }
 
+        TestGeneral saved = saveOrUpdateTestGeneral(user,request);
+
         FitnessResult existing = existingList.stream()
                 .max(Comparator.comparing(FitnessResult::getCreatedAt))
                 .get();
@@ -300,14 +311,13 @@ public class FitnessController {
         FitnessResponseDTO.FitnessAverage average = response.getAverage();
 
         fitnessResultMapper.updateEntityFromResponse(response, existing);
+        existing.setGeneralResultId(saved);
         fitnessResultRepository.save(existing);
 
         response = fitnessResultMapper.toResponseDTO(existing);
 
         FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
         response.setUserInfo(userInfo);
-
-        saveOrUpdateTestGeneral(user,request);
 
         response.setAverage(average);
 
@@ -345,6 +355,19 @@ public class FitnessController {
         int age = FitnessScoreService.calculateAge(Objects.requireNonNull(userInfo).getBirthDate());
         FitnessStandardSet st = fitnessStandards.getStandard(userInfo.getSex(), age);
         response.setAverage(fitnessScoreService.getAverage(st));
+
+        if (entity.getKookminResultId() != null) {
+            // 국민체력 100 결과 처리
+            TestKookmin existing = testKookminRepository.findById(entity.getKookminResultId().getId())
+                    .orElse(null);
+            response.setTestKookmin(fitnessMapper.toKookminDTO(existing));
+
+        } else {
+            // 간단 체력 측정 결과 처리
+            TestGeneral existing = testGeneralRepository.findById(entity.getGeneralResultId().getId())
+                    .orElse(null);
+            response.setTestGeneral(fitnessMapper.toGeneralDTO(existing));
+        }
 
         return ApiResponse.onSuccess(response);
     }

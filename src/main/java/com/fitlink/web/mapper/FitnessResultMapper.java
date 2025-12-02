@@ -19,6 +19,8 @@ public interface FitnessResultMapper {
     @Mapping(target = "agility", source = "agility")
     @Mapping(target = "quickness", source = "quickness")
     @Mapping(target = "average", ignore = true)
+    @Mapping(target = "kookmin_result_id", ignore = true)
+    @Mapping(target = "general_result_id", ignore = true)
     FitnessResponseDTO toResponseDTO(FitnessResult result);
 
     // DTO -> Entity
@@ -30,6 +32,8 @@ public interface FitnessResultMapper {
     @Mapping(target = "cardiopulmonary", source = "dto.cardiopulmonary")
     @Mapping(target = "agility", source = "dto.agility")
     @Mapping(target = "quickness", source = "dto.quickness")
+    @Mapping(target = "kookmin_result_id", ignore = true)
+    @Mapping(target = "general_result_id", ignore = true)
     FitnessResult toEntity(FitnessResponseDTO dto, Users user);
 
     // UPDATE: DTO -> Entity
@@ -41,5 +45,7 @@ public interface FitnessResultMapper {
     @Mapping(target = "cardiopulmonary", source = "dto.cardiopulmonary")
     @Mapping(target = "agility", source = "dto.agility")
     @Mapping(target = "quickness", source = "dto.quickness")
+    @Mapping(target = "kookmin_result_id", ignore = true)
+    @Mapping(target = "general_result_id", ignore = true)
     void updateEntityFromResponse(FitnessResponseDTO dto, @MappingTarget FitnessResult entity);
 }
