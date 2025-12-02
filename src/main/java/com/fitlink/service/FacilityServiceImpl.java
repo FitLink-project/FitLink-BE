@@ -25,8 +25,8 @@ public class FacilityServiceImpl implements FacilityService {
     private final ProgramRepository programRepository;
     private final double SEARCH_RADIUS = 10000; // 10km
     private final TmapPoiService tmapPoiService;
-    private static final double RADIUS_STATION = 2000.0; // 2km
-    private static final double RADIUS_REGION = 3000.0;  // 3km (지역명 검색)
+    private static final double RADIUS_STATION = 20000.0; // 20km
+    private static final double RADIUS_REGION = 30000.0;  // 30km (지역명 검색)
 
     @Override
     public List<NearbyFacilityResponseDTO> getNearbyFacilities(NearByRequestDTO req) {
