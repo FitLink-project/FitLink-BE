@@ -200,6 +200,8 @@ public class FitnessController {
         FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
         response.setUserInfo(userInfo);
 
+        response.setTestKookmin(fitnessMapper.toKookminDTO(saved));
+
         return ApiResponse.onSuccess(response);
     }
 
@@ -226,6 +228,8 @@ public class FitnessController {
 
         FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
         response.setUserInfo(userInfo);
+
+        response.setTestGeneral(fitnessMapper.toGeneralDTO(saved));
 
         return ApiResponse.onSuccess(response);
     }
