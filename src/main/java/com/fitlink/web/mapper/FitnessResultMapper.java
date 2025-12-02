@@ -18,7 +18,7 @@ public interface FitnessResultMapper {
     @Mapping(target = "cardiopulmonary", source = "cardiopulmonary")
     @Mapping(target = "agility", source = "agility")
     @Mapping(target = "quickness", source = "quickness")
-    @Mapping(target = "average", ignore = true)
+    @Mapping(target = "standard", ignore = true)
     @Mapping(target = "userInfo", ignore = true)     // Service에서 별도로 set하거나, user 매퍼 필요
     @Mapping(target = "testKookmin", ignore = true)  // Service에서 별도로 set
     @Mapping(target = "testGeneral", ignore = true)  // Service에서 별도로 set

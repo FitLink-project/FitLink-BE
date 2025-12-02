@@ -266,7 +266,7 @@ public class FitnessController {
         response = fitnessScoreService.calculateKookmin(request);
 
         // 점수를 계산하고 나온 평균값
-        FitnessResponseDTO.FitnessAverage average = response.getAverage();
+        FitnessResponseDTO.FitnessStandardResponse standard = response.getStandard();
 
         // 기존 엔티티에 업데이트 적용
         fitnessResultMapper.updateEntityFromResponse(response, existing);
@@ -280,7 +280,7 @@ public class FitnessController {
         response.setUserInfo(userInfo);
 
         // 결과 DTO에 평균값 추가
-        response.setAverage(average);
+        response.setStandard(standard);
 
         return ApiResponse.onSuccess(response);
     }
@@ -312,7 +312,7 @@ public class FitnessController {
 
         response = fitnessScoreService.calculateGeneral(request);
 
-        FitnessResponseDTO.FitnessAverage average = response.getAverage();
+        FitnessResponseDTO.FitnessStandardResponse standard = response.getStandard();
 
         fitnessResultMapper.updateEntityFromResponse(response, existing);
         existing.setGeneralResultId(saved);
@@ -323,7 +323,7 @@ public class FitnessController {
         FitnessResponseDTO.UserInfo userInfo = saveOrUpdateUsersInfo(user, request.getSex(), request.getBirthDate(), request.getHeight(), request.getWeight());
         response.setUserInfo(userInfo);
 
-        response.setAverage(average);
+        response.setStandard(standard);
 
         return ApiResponse.onSuccess(response);
     }
@@ -358,7 +358,7 @@ public class FitnessController {
         // 평균값 추가
         int age = FitnessScoreService.calculateAge(Objects.requireNonNull(userInfo).getBirthDate());
         FitnessStandardSet st = fitnessStandards.getStandard(userInfo.getSex(), age);
-        response.setAverage(fitnessScoreService.getAverage(st));
+        response.setStandard(fitnessScoreService.getStandards(st));
 
         if (entity.getKookminResultId() != null) {
             // 국민체력 100 결과 처리

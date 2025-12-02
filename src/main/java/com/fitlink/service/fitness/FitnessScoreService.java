@@ -41,8 +41,8 @@ public class FitnessScoreService {
         res.setAgility(calculator.scoreLowerIsBetter(dto.getSprint(), standardSet.getSprint()));
         res.setQuickness(calculator.scoreHigherIsBetter(dto.getStandingLongJump(), standardSet.getStandingLongJump()));
 
-        // 해당되는 구간의 평균값 추가
-        res.setAverage(getAverage(standardSet));
+        // 해당되는 구간의 1, 2등급 기준값 추가 (기존 getAverage -> getStandards 변경)
+        res.setStandard(getStandards(standardSet));
         return res;
     }
 
@@ -64,8 +64,8 @@ public class FitnessScoreService {
         res.setAgility(dto.getSliderAgility() == null ? null : dto.getSliderAgility().floatValue());
         res.setQuickness(dto.getSliderPower() == null ? null : dto.getSliderPower().floatValue());
 
-        // 해당되는 구간의 평균값 추가
-        res.setAverage(getAverage(standardSet));
+        // 해당되는 구간의 1, 2등급 기준값 추가 (기존 getAverage -> getStandards 변경)
+        res.setStandard(getStandards(standardSet));
         return res;
     }
 
@@ -94,28 +94,37 @@ public class FitnessScoreService {
         return age;
     }
 
-    /** 해당 standardSet에서 2등급 값을 가져와 ResponseDTO에 추가함.
-    *
-    * @param standardSet 가져올 평균 세트
-    * @return averageDto 가져온 평균의 FitnessResponseDTO.FitnessAverage
-    * */
-    public FitnessResponseDTO.FitnessAverage getAverage(FitnessStandardSet standardSet) {
-        float gripStrength = standardSet.getGripStrength().getGrade2();
-        float sitUp = standardSet.getSitUp().getGrade2();
-        float sitAndReach = standardSet.getSitAndReach().getGrade2();
-        float shuttleRun = standardSet.getShuttleRun().getGrade2();
-        float sprint = standardSet.getSprint().getGrade2();
-        float standingLongJump = standardSet.getStandingLongJump().getGrade2();
+    /** 해당 standardSet에서 1등급과 2등급 값을 모두 가져와 ResponseDTO에 추가함.
+     *
+     * @param standardSet 가져올 평균 세트
+     * @return FitnessStandardResponse 1등급과 2등급 데이터가 모두 포함된 응답 객체
+     */
+    public FitnessResponseDTO.FitnessStandardResponse getStandards(FitnessStandardSet standardSet) {
 
-        // 예: .getAverage() 혹은 해당 값
+        // 1등급(Grade 1) 데이터 추출 및 빌드
+        FitnessResponseDTO.FitnessAverage grade1Average = FitnessResponseDTO.FitnessAverage.builder()
+                .gripStrength(standardSet.getGripStrength().getGrade1())
+                .sitUp(standardSet.getSitUp().getGrade1())
+                .sitAndReach(standardSet.getSitAndReach().getGrade1())
+                .shuttleRun(standardSet.getShuttleRun().getGrade1())
+                .sprint(standardSet.getSprint().getGrade1())
+                .standingLongJump(standardSet.getStandingLongJump().getGrade1())
+                .build();
 
-        return FitnessResponseDTO.FitnessAverage.builder()
-                .gripStrength(gripStrength) // 예: .getAverage() 혹은 해당 값
-                .sitUp(sitUp)
-                .sitAndReach(sitAndReach)
-                .shuttleRun(shuttleRun)
-                .sprint(sprint)
-                .standingLongJump(standingLongJump)
+        // 2등급(Grade 2) 데이터 추출 및 빌드
+        FitnessResponseDTO.FitnessAverage grade2Average = FitnessResponseDTO.FitnessAverage.builder()
+                .gripStrength(standardSet.getGripStrength().getGrade2())
+                .sitUp(standardSet.getSitUp().getGrade2())
+                .sitAndReach(standardSet.getSitAndReach().getGrade2())
+                .shuttleRun(standardSet.getShuttleRun().getGrade2())
+                .sprint(standardSet.getSprint().getGrade2())
+                .standingLongJump(standardSet.getStandingLongJump().getGrade2())
+                .build();
+
+        // 두 등급 데이터를 하나의 DTO로 묶어서 반환
+        return FitnessResponseDTO.FitnessStandardResponse.builder()
+                .grade1(grade1Average)
+                .grade2(grade2Average)
                 .build();
     }
 }

@@ -38,7 +38,7 @@ public class FitnessResponseDTO {
     // 2. 포함된 객체 정보 (평균, 유저정보, 상세기록)
     // ==========================================
     @Schema(description = "운동 종목별 대한민국 평균 데이터")
-    private FitnessAverage average;
+    private FitnessStandardResponse standard;
 
     @Schema(description = "사용자 신체 정보")
     private UserInfo userInfo;
@@ -53,6 +53,17 @@ public class FitnessResponseDTO {
     // ==========================================
     // 3. 내부 클래스 (DTO) 정의
     // ==========================================
+
+    /** 1등급과 2등급 데이터를 모두 포함하는 응답 DTO */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class FitnessStandardResponse {
+        private FitnessAverage grade1; // 1등급 평균/기준값
+        private FitnessAverage grade2; // 2등급 평균/기준값
+    }
 
     /** 대한민국 평균값 DTO */
     @NoArgsConstructor
