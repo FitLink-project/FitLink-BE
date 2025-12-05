@@ -3,6 +3,7 @@ package com.fitlink.web.dto;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
+
 import java.util.List;
 
 @Data
@@ -20,17 +21,11 @@ public class TmapRouteDTO {
 
     @Data
     public static class Geometry {
-
         private String type;
 
-        // Point -> [lng, lat]
-        private List<Double> point;
-
-        // LineString -> [[lng, lat], [lng, lat] ...]
-        private List<List<Double>> line;
-
-        // MultiLineString -> [[[lng, lat], ...], [...]]
-        private List<List<List<Double>>> multi;
+        private List<Double> point;                   // [lng, lat]
+        private List<List<Double>> line;              // [[lng,lat], ...]
+        private List<List<List<Double>>> multi;       // [[[lng,lat]...]]
 
         @JsonAnySetter
         public void handle(String key, Object value) {
@@ -38,20 +33,17 @@ public class TmapRouteDTO {
 
             if (value instanceof List<?> list) {
 
-                // 1) Point : [lng, lat]
                 if (!list.isEmpty() && list.get(0) instanceof Number) {
                     this.point = (List<Double>) value;
                     return;
                 }
 
-                // 2) LineString : [[lng,lat], [lng,lat]]
                 if (!list.isEmpty() && list.get(0) instanceof List<?> sub
                         && sub.size() == 2 && sub.get(0) instanceof Number) {
                     this.line = (List<List<Double>>) value;
                     return;
                 }
 
-                // 3) MultiLineString : [[[lng,lat],...], ...]
                 if (!list.isEmpty() && list.get(0) instanceof List<?> sub2
                         && sub2.get(0) instanceof List<?>) {
                     this.multi = (List<List<List<Double>>>) value;

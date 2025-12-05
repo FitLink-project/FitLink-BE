@@ -12,11 +12,12 @@ public class FacilityRouteServiceImpl implements FacilityRouteService {
 
     @Override
     public RouteResponseDTO getRoute(
-            float originLat, float originLng,
-            float destLat, float destLng,
+            float originLat,
+            float originLng,
+            float destLat,
+            float destLng,
             String type
     ) {
-
         return switch (type) {
             case "walk" -> tmapRouteService.getPedestrianRoute(originLat, originLng, destLat, destLng);
             case "car" -> tmapRouteService.getCarRoute(originLat, originLng, destLat, destLng);

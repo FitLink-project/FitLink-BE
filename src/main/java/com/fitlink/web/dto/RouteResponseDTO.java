@@ -10,17 +10,18 @@ import java.util.List;
 @Builder
 public class RouteResponseDTO {
 
-    private String type;
-    private int duration;
-    private int distance; // 도보/자동차만
-    private List<List<Double>> path; // 도보/자동차만
-    private List<RouteStep> routes;  // 대중교통만
+    private String type;       // walk / car / transit
+    private int duration;      // minutes
+    private int distance;      // meters (walk/car only)
+    private List<List<Double>> path;
+
+    private List<Waypoint> waypoints;   // ★ 자동 추출된 안내 포인트
 
     @Data
     @AllArgsConstructor
-    public static class RouteStep {
-        private String mode;
-        private String instruction;
-        private int duration;
+    public static class Waypoint {
+        private double lat;
+        private double lng;
+        private String description; // 예: "좌회전", "횡단보도 건너기"
     }
 }
