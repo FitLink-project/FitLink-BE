@@ -101,7 +101,7 @@ public class TmapRouteService {
     }
 
     /* ---------------------------
-     *   POST 호출 공통
+     *   POST 공통
      * --------------------------- */
     private TmapRouteDTO post(String url, String body) {
 
@@ -121,13 +121,12 @@ public class TmapRouteService {
 
         } catch (Exception e) {
             System.err.println("DTO 변환 오류: " + e.getMessage());
-            e.printStackTrace();
             return null;
         }
     }
 
     /* ---------------------------
-     *   Walk / Car 공통 변환
+     *   Walk / Car 변환
      * --------------------------- */
     private RouteResponseDTO convertWalkCar(String type, TmapRouteDTO dto) {
 
@@ -137,6 +136,7 @@ public class TmapRouteService {
                     .distance(0)
                     .duration(0)
                     .path(new ArrayList<>())
+                    .waypoints(new ArrayList<>())
                     .build();
         }
 
@@ -145,9 +145,12 @@ public class TmapRouteService {
         int minutes = seconds / 60;
 
         List<List<Double>> path = new ArrayList<>();
+        List<RouteResponseDTO.Waypoint> waypoints = new ArrayList<>();
 
         dto.getFeatures().forEach(feature -> {
+
             var geo = feature.getGeometry();
+            var prop = feature.getProperties();
 
             if (geo == null || geo.getType() == null) return;
 
@@ -161,8 +164,24 @@ public class TmapRouteService {
 
                 case "Point" -> {
                     if (geo.getPoint() != null) {
+
                         var c = geo.getPoint();
-                        path.add(List.of(c.get(1), c.get(0)));
+                        double lat = c.get(1);
+                        double lng = c.get(0);
+
+                        path.add(List.of(lat, lng));
+
+                        // ★ turnType이 있으면 경유지로 추가
+                        if (prop != null && prop.getTurnType() != null) {
+
+                            waypoints.add(
+                                    new RouteResponseDTO.Waypoint(
+                                            lat,
+                                            lng,
+                                            prop.getDescription()
+                                    )
+                            );
+                        }
                     }
                 }
 
@@ -170,8 +189,7 @@ public class TmapRouteService {
                     if (geo.getMulti() != null)
                         geo.getMulti().forEach(line ->
                                 line.forEach(coord ->
-                                        path.add(List.of(coord.get(1), coord.get(0)))
-                                ));
+                                        path.add(List.of(coord.get(1), coord.get(0)))));
                 }
             }
         });
@@ -181,6 +199,7 @@ public class TmapRouteService {
                 .distance(distance)
                 .duration(minutes)
                 .path(path)
+                .waypoints(waypoints)
                 .build();
     }
 
@@ -194,30 +213,9 @@ public class TmapRouteService {
 
         int totalDuration = it.getDuration() / 60;
 
-        List<RouteResponseDTO.RouteStep> steps = new ArrayList<>();
-
-        for (TransitRouteDTO.Leg leg : it.getLegs()) {
-
-            String instruction = switch (leg.getMode()) {
-                case "WALK" -> "도보 이동";
-                case "BUS" -> leg.getRoute() + " 버스 이동";
-                case "SUBWAY" -> leg.getRoute() + " 지하철 이동";
-                default -> "이동";
-            };
-
-            steps.add(
-                    new RouteResponseDTO.RouteStep(
-                            leg.getMode().toLowerCase(),
-                            instruction,
-                            leg.getSectionTime() / 60
-                    )
-            );
-        }
-
         return RouteResponseDTO.builder()
                 .type("transit")
                 .duration(totalDuration)
-                .routes(steps)
                 .build();
     }
 }
