@@ -50,8 +50,10 @@ public class SecurityConfig {
                                 "/oauth2/**",
                                 "/login",
                                 "/login/oauth2/**",
-                                "/api/video/stream"
-                        ).permitAll()
+                                "/api/video/stream",
+                                "/api/maps/**"
+
+                                ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
