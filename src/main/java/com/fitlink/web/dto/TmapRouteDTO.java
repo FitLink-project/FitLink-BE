@@ -23,9 +23,8 @@ public class TmapRouteDTO {
     public static class Geometry {
         private String type;
 
-        private List<Double> point;                   // [lng, lat]
-        private List<List<Double>> line;              // [[lng,lat], ...]
-        private List<List<List<Double>>> multi;       // [[[lng,lat]...]]
+        private List<Double> point;
+        private List<List<Double>> line;
 
         @JsonAnySetter
         public void handle(String key, Object value) {
@@ -39,14 +38,8 @@ public class TmapRouteDTO {
                 }
 
                 if (!list.isEmpty() && list.get(0) instanceof List<?> sub
-                        && sub.size() == 2 && sub.get(0) instanceof Number) {
+                        && sub.size() == 2) {
                     this.line = (List<List<Double>>) value;
-                    return;
-                }
-
-                if (!list.isEmpty() && list.get(0) instanceof List<?> sub2
-                        && sub2.get(0) instanceof List<?>) {
-                    this.multi = (List<List<List<Double>>>) value;
                 }
             }
         }
