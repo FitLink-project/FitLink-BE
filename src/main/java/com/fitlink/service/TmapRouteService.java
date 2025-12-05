@@ -23,9 +23,10 @@ public class TmapRouteService {
 
     private static final String BASE_URL = "https://apis.openapi.sk.com";
 
-    /* ---------------------------
-     *   1) 도보 경로
-     * --------------------------- */
+
+    /* =================================================
+     *   WALK
+     * ================================================= */
     public RouteResponseDTO getPedestrianRoute(float oLat, float oLng, float dLat, float dLng) {
 
         String url = BASE_URL + "/tmap/routes/pedestrian?version=1";
@@ -38,19 +39,19 @@ public class TmapRouteService {
             "endY": %f,
             "startName": "출발지",
             "endName": "도착지",
-            "searchOption": "0",
             "reqCoordType": "WGS84GEO",
             "resCoordType": "WGS84GEO"
         }
         """, oLng, oLat, dLng, dLat);
 
-        TmapRouteDTO dto = post(url, body);
-        return convertWalkCar("walk", dto);
+        TmapRouteDTO dto = post(url, body, TmapRouteDTO.class);
+        return convertWalk(dto);
     }
 
-    /* ---------------------------
-     *   2) 자동차 경로
-     * --------------------------- */
+
+    /* =================================================
+     *   CAR
+     * ================================================= */
     public RouteResponseDTO getCarRoute(float oLat, float oLng, float dLat, float dLng) {
 
         String url = BASE_URL + "/tmap/routes?version=1";
@@ -63,19 +64,19 @@ public class TmapRouteService {
             "endY": %f,
             "startName": "출발지",
             "endName": "도착지",
-            "searchOption": "0",
             "reqCoordType": "WGS84GEO",
             "resCoordType": "WGS84GEO"
         }
         """, oLng, oLat, dLng, dLat);
 
-        TmapRouteDTO dto = post(url, body);
-        return convertWalkCar("car", dto);
+        TmapCarRouteDTO dto = post(url, body, TmapCarRouteDTO.class);
+        return convertCar(dto);
     }
 
-    /* ---------------------------
-     *   3) 대중교통 경로
-     * --------------------------- */
+
+    /* =================================================
+     *   TRANSIT
+     * ================================================= */
     public RouteResponseDTO getTransitRoute(float oLat, float oLng, float dLat, float dLng) {
 
         String url = UriComponentsBuilder.fromHttpUrl(BASE_URL + "/transit/routes")
@@ -86,136 +87,179 @@ public class TmapRouteService {
                 .queryParam("endY", dLat)
                 .queryParam("reqCoordType", "WGS84GEO")
                 .queryParam("resCoordType", "WGS84GEO")
-                .queryParam("sort", 0)
-                .queryParam("lang", 0)
                 .queryParam("format", "json")
                 .toUriString();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("appKey", appKey);
+        ResponseEntity<TmapRouteDTO> res =
+                restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(buildHeaders()), TmapRouteDTO.class);
 
-        ResponseEntity<TransitRouteDTO> response =
-                restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), TransitRouteDTO.class);
-
-        return convertTransit(response.getBody());
+        return RouteResponseDTO.builder()
+                .type("transit")
+                .duration(0)
+                .path(new ArrayList<>())
+                .waypoints(new ArrayList<>())
+                .build();
     }
 
-    /* ---------------------------
-     *   POST 공통
-     * --------------------------- */
-    private TmapRouteDTO post(String url, String body) {
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("appKey", appKey);
-        headers.setContentType(MediaType.APPLICATION_JSON);
+    /* =================================================
+     *   POST 공용
+     * ================================================= */
+    private <T> T post(String url, String body, Class<T> clazz) {
 
-        HttpEntity<String> entity = new HttpEntity<>(body, headers);
+        HttpEntity<String> entity = new HttpEntity<>(body, buildHeaders());
 
-        ResponseEntity<String> rawResponse =
+        ResponseEntity<String> raw =
                 restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
-        System.out.println("[Tmap Raw Response] = " + rawResponse.getBody());
+        System.out.println("[RAW] = " + raw.getBody());
 
         try {
-            return new ObjectMapper().readValue(rawResponse.getBody(), TmapRouteDTO.class);
-
+            return new ObjectMapper().readValue(raw.getBody(), clazz);
         } catch (Exception e) {
-            System.err.println("DTO 변환 오류: " + e.getMessage());
+            System.err.println(clazz.getSimpleName() + " 변환 오류: " + e.getMessage());
             return null;
         }
     }
 
-    /* ---------------------------
-     *   Walk / Car 변환
-     * --------------------------- */
-    private RouteResponseDTO convertWalkCar(String type, TmapRouteDTO dto) {
+    private HttpHeaders buildHeaders() {
+        HttpHeaders h = new HttpHeaders();
+        h.set("appKey", appKey);
+        h.setContentType(MediaType.APPLICATION_JSON);
+        return h;
+    }
 
-        if (dto == null || dto.getFeatures() == null || dto.getFeatures().isEmpty()) {
-            return RouteResponseDTO.builder()
-                    .type(type)
-                    .distance(0)
-                    .duration(0)
-                    .path(new ArrayList<>())
-                    .waypoints(new ArrayList<>())
-                    .build();
-        }
 
-        int distance = dto.getFeatures().get(0).getProperties().getTotalDistance();
-        int seconds = dto.getFeatures().get(0).getProperties().getTotalTime();
-        int minutes = seconds / 60;
+    /* =================================================
+     *   WALK 변환
+     * ================================================= */
+    private RouteResponseDTO convertWalk(TmapRouteDTO dto) {
+
+        if (dto == null || dto.getFeatures() == null) return empty("walk");
+
+        int dist = dto.getFeatures().get(0).getProperties().getTotalDistance();
+        int time = dto.getFeatures().get(0).getProperties().getTotalTime() / 60;
 
         List<List<Double>> path = new ArrayList<>();
         List<RouteResponseDTO.Waypoint> waypoints = new ArrayList<>();
 
-        dto.getFeatures().forEach(feature -> {
+        for (var f : dto.getFeatures()) {
+            var geo = f.getGeometry();
+            var prop = f.getProperties();
+            if (geo == null) continue;
 
-            var geo = feature.getGeometry();
-            var prop = feature.getProperties();
-
-            if (geo == null || geo.getType() == null) return;
-
-            switch (geo.getType()) {
-
-                case "LineString" -> {
-                    if (geo.getLine() != null)
-                        geo.getLine().forEach(coord ->
-                                path.add(List.of(coord.get(1), coord.get(0))));
-                }
-
-                case "Point" -> {
-                    if (geo.getPoint() != null) {
-
-                        var c = geo.getPoint();
-                        double lat = c.get(1);
-                        double lng = c.get(0);
-
-                        path.add(List.of(lat, lng));
-
-                        // ★ turnType이 있으면 경유지로 추가
-                        if (prop != null && prop.getTurnType() != null) {
-
-                            waypoints.add(
-                                    new RouteResponseDTO.Waypoint(
-                                            lat,
-                                            lng,
-                                            prop.getDescription()
-                                    )
-                            );
-                        }
-                    }
-                }
-
-                case "MultiLineString" -> {
-                    if (geo.getMulti() != null)
-                        geo.getMulti().forEach(line ->
-                                line.forEach(coord ->
-                                        path.add(List.of(coord.get(1), coord.get(0)))));
-                }
+            if (geo.getPoint() != null) {
+                double lat = geo.getPoint().get(1);
+                double lng = geo.getPoint().get(0);
+                path.add(List.of(lat, lng));
             }
-        });
+
+            if (geo.getLine() != null) {
+                geo.getLine().forEach(c -> path.add(List.of(c.get(1), c.get(0))));
+            }
+
+            if (prop != null && prop.getDescription() != null && prop.getTurnType() != null) {
+                waypoints.add(new RouteResponseDTO.Waypoint(
+                        path.get(path.size()-1).get(0),
+                        path.get(path.size()-1).get(1),
+                        prop.getDescription()
+                ));
+            }
+        }
 
         return RouteResponseDTO.builder()
-                .type(type)
-                .distance(distance)
-                .duration(minutes)
+                .type("walk")
+                .distance(dist)
+                .duration(time)
                 .path(path)
                 .waypoints(waypoints)
                 .build();
     }
 
-    /* ---------------------------
-     *   Transit 변환
-     * --------------------------- */
-    private RouteResponseDTO convertTransit(TransitRouteDTO dto) {
 
-        TransitRouteDTO.Itinerary it =
-                dto.getMetaData().getPlan().getItineraries().get(0);
+    /* =================================================
+     *   CAR 변환
+     * ================================================= */
+    private RouteResponseDTO convertCar(TmapCarRouteDTO dto) {
 
-        int totalDuration = it.getDuration() / 60;
+        if (dto == null || dto.getFeatures() == null) {
+            return empty("car");
+        }
+
+        int[] totalDistance = {0};
+        int[] totalTime = {0};
+
+        List<List<Double>> path = new ArrayList<>();
+        List<RouteResponseDTO.Waypoint> waypoints = new ArrayList<>();
+
+        dto.getFeatures().forEach(f -> {
+
+            var geo = f.getGeometry();
+            var prop = f.getProperties();
+
+            // 거리/시간 누적
+            if (prop != null) {
+                totalDistance[0] += prop.getDistanceInt();
+                totalTime[0] += prop.getTimeInt();
+            }
+
+            if (geo == null) return;
+
+            /* ------------------------
+             * MULTILINESTRING
+             * ------------------------ */
+            if ("MultiLineString".equals(geo.getType()) && geo.getMulti() != null) {
+                geo.getMulti().forEach(line ->
+                        line.forEach(coord ->
+                                path.add(List.of(coord.get(1), coord.get(0))))
+                );
+            }
+
+            /* ------------------------
+             * LINESTRING
+             * ------------------------ */
+            if ("LineString".equals(geo.getType()) && geo.getLine() != null) {
+                geo.getLine().forEach(coord ->
+                        path.add(List.of(coord.get(1), coord.get(0))));
+            }
+
+            /* ------------------------
+             * POINT + name 기반 waypoint
+             * ------------------------ */
+            if ("Point".equals(geo.getType()) &&
+                    geo.getPoint() != null &&
+                    prop != null &&
+                    (prop.getDescription() != null || prop.getIndex() != null)) {
+
+                double lat = geo.getPoint().get(1);
+                double lng = geo.getPoint().get(0);
+
+                String desc = prop.getDescription() != null
+                        ? prop.getDescription()
+                        : ("지점_" + prop.getIndex());
+
+                waypoints.add(new RouteResponseDTO.Waypoint(lat, lng, desc));
+            }
+
+        });
 
         return RouteResponseDTO.builder()
-                .type("transit")
-                .duration(totalDuration)
+                .type("car")
+                .distance(totalDistance[0])
+                .duration(totalTime[0] / 60)
+                .path(path)
+                .waypoints(waypoints)
+                .build();
+    }
+
+
+    private RouteResponseDTO empty(String type) {
+        return RouteResponseDTO.builder()
+                .type(type)
+                .distance(0)
+                .duration(0)
+                .path(new ArrayList<>())
+                .waypoints(new ArrayList<>())
                 .build();
     }
 }
